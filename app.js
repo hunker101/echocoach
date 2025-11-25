@@ -32,3 +32,5 @@ app.listen(PORT, () => {
   console.log(`Server running at http://localhost:${PORT}`);
   console.log(`Admin Panel at http://localhost:${PORT}/admin`);
 });
+
+module.exports = app;

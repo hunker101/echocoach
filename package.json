@@ -4,7 +4,8 @@
   "main": "app.js",
   "scripts": {
     "start": "node app.js",
-    "dev": "nodemon app.js"
+    "dev": "node app.js",
+    "build": "echo 'No build step needed'"
   },
   "dependencies": {
     "@google/genai": "^1.30.0",

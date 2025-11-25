@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EchoCoach Management</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        [x-cloak] { display: none !important; }
+        .ai-gradient {
+            background: linear-gradient(45deg, #4f46e5, #9333ea, #ec4899);
+            background-size: 200% 200%;
+            animation: gradient 3s ease infinite;
+        }
+        @keyframes gradient { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+    </style>
+</head>
+<body class="bg-gray-100" x-data="{ currentTab: new URLSearchParams(window.location.search).get('tab') || 'users', showModal: false, editItem: {} }">
+
+    <!-- Top Navigation -->
+    <nav class="bg-white shadow-sm border-b border-gray-200 fixed w-full z-30">
+        <div class="px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center gap-3">
+                    <img src="/img/logo.png" alt="Logo" class="h-8 w-auto">
+                    <span class="text-xl font-bold text-gray-800 border-l border-gray-300 pl-3 ml-3">Admin Portal</span>
+                </div>
+                <div class="flex items-center gap-4">
+                    <a href="/" class="text-sm text-gray-600 hover:text-blue-600">View Live Site</a>
+                    <span class="text-gray-300">|</span>
+                    <a href="/logout" class="text-sm font-medium text-red-600 hover:text-red-800">Logout</a>
+                    <div class="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold">A</div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="flex h-screen pt-16">
+        <!-- Sidebar -->
+        <aside class="w-64 bg-white border-r border-gray-200 hidden md:block flex-shrink-0">
+            <div class="p-4 space-y-1">
+                <a href="/admin/dashboard" class="w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-600 hover:bg-gray-50 transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
+                    <span>Dashboard</span>
+                </a>
+                <div class="pt-4 pb-2 px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Manage</div>
+                <button @click="currentTab = 'users'" :class="currentTab === 'users' ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50'" class="w-full flex items-center space-x-3 px-4 py-3 rounded-lg font-medium transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                    <span>Users</span>
+                </button>
+                <button @click="currentTab = 'modules'" :class="currentTab === 'modules' ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50'" class="w-full flex items-center space-x-3 px-4 py-3 rounded-lg font-medium transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                    <span>Modules</span>
+                </button>
+                <div class="pt-4 pb-2 px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Assessment Center</div>
+                <button @click="currentTab = 'testbank'" :class="currentTab === 'testbank' ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50'" class="w-full flex items-center space-x-3 px-4 py-3 rounded-lg font-medium transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
+                    <span>General Test Bank</span>
+                </button>
+                <button @click="currentTab = 'abel'" :class="currentTab === 'abel' ? 'bg-purple-50 text-purple-700' : 'text-gray-600 hover:bg-gray-50'" class="w-full flex items-center space-x-3 px-4 py-3 rounded-lg font-medium transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    <span>ABEL Assessment</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 overflow-y-auto p-8">
+            
+            <!-- 1. USERS TAB -->
+            <div x-show="currentTab === 'users'" x-transition.opacity>
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold text-gray-800">User Management</h2>
+                    <button @click="showModal = 'addUser'" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 shadow-sm transition">+ Add User</button>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            <% users.forEach(function(user) { %>
+                            <tr class="hover:bg-gray-50 transition">
+                                <td class="px-6 py-4 text-sm font-medium text-gray-900"><%= user.name %> <br><span class="text-gray-500 font-normal"><%= user.email %></span></td>
+                                <td class="px-6 py-4 text-sm text-gray-500"><%= user.role %></td>
+                                <td class="px-6 py-4 text-right text-sm font-medium">
+                                    <div class="flex justify-end space-x-3">
+                                        <button @click="showModal = 'editUser'; editItem = { id: '<%= user.id %>', name: '<%= user.name %>', email: '<%= user.email %>', role: '<%= user.role %>' }" class="text-blue-600 hover:text-blue-900">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                        </button>
+                                        <form action="/admin/delete-user" method="POST" onsubmit="return confirm('Are you sure?');">
+                                            <input type="hidden" name="id" value="<%= user.id %>">
+                                            <button type="submit" class="text-red-600 hover:text-red-900">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            <% }); %>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 2. MODULES TAB -->
+            <div x-show="currentTab === 'modules'" x-cloak x-transition.opacity>
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold text-gray-800">Module Management</h2>
+                    <div class="flex gap-3">
+                        <!-- NEW AI Button -->
+                        <button @click="showModal = 'generateModuleAI'" class="ai-gradient text-white px-4 py-2 rounded-lg shadow-md hover:opacity-90 transition flex items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clip-rule="evenodd" /></svg>
+                            Generate Module
+                        </button>
+                        <button @click="showModal = 'addModule'" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 shadow-sm transition">+ New Module</button>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <% modules.forEach(function(module) { %>
+                    <div 
+                        @click="showModal = 'editModule'; editItem = { id: '<%= module.id %>', code: '<%= module.code %>', title: '<%= module.title %>', description: '<%= module.description %>', level: '<%= module.level %>' }"
+                        class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-lg hover:border-blue-400 transition group relative cursor-pointer transform hover:-translate-y-1"
+                    >
+                        <div class="absolute top-4 right-4 flex space-x-2 opacity-0 group-hover:opacity-100 transition">
+                            <button @click.stop="showModal = 'editModule'; editItem = { id: '<%= module.id %>', code: '<%= module.code %>', title: '<%= module.title %>', description: '<%= module.description %>', level: '<%= module.level %>' }" class="p-1 bg-gray-100 rounded text-blue-600 hover:bg-blue-100">
+                                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                            </button>
+                            <form action="/admin/delete-module" method="POST" onsubmit="return confirm('Delete this module?');" @click.stop>
+                                <input type="hidden" name="id" value="<%= module.id %>">
+                                <button type="submit" class="p-1 bg-gray-100 rounded text-red-600 hover:bg-red-100">
+                                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                                </button>
+                            </form>
+                        </div>
+                        <div class="flex justify-between items-start mb-4">
+                            <span class="text-lg font-bold text-blue-600"><%= module.code %></span>
+                            <span class="bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded"><%= module.level %></span>
+                        </div>
+                        <h3 class="text-lg font-bold text-gray-900"><%= module.title %></h3>
+                        <p class="text-gray-500 text-sm mt-2"><%= module.description %></p>
+                    </div>
+                    <% }); %>
+                </div>
+            </div>
+
+            <!-- 3. TEST BANK TAB -->
+            <div x-show="currentTab === 'testbank'" x-cloak x-transition.opacity>
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold text-gray-800">General Test Bank</h2>
+                    <div class="flex gap-3">
+                        <button @click="showModal = 'generateAI'" class="ai-gradient text-white px-4 py-2 rounded-lg shadow-md hover:opacity-90 transition flex items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clip-rule="evenodd" /></svg>
+                            Generate with AI
+                        </button>
+                        <button @click="showModal = 'addTest'" class="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition">Manual Add</button>
+                    </div>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 divide-y divide-gray-100">
+                    <% assessments.forEach(function(test) { %>
+                    <div class="p-5">
+                        <span class="inline-block px-2 py-1 text-xs font-semibold bg-indigo-100 text-indigo-700 rounded mb-2"><%= test.category %></span>
+                        <h4 class="text-md font-semibold text-gray-800"><%= test.question %></h4>
+                        <p class="text-sm text-gray-500 mt-1">Answer: <span class="font-mono bg-gray-100 px-1 rounded"><%= test.answer %></span></p>
+                    </div>
+                    <% }); %>
+                </div>
+            </div>
+
+            <!-- 4. ABEL TAB -->
+            <div x-show="currentTab === 'abel'" x-cloak x-transition.opacity>
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold text-gray-800">ABEL Final Assessment</h2>
+                    <button @click="showModal = 'addAbel'" class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition">+ Add Final Question</button>
+                </div>
+                <div class="space-y-4">
+                    <% finalAssessments.forEach(function(abel) { %>
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex justify-between items-center">
+                        <div>
+                            <h4 class="font-medium text-gray-900"><%= abel.prompt %></h4>
+                            <div class="text-sm text-gray-500 mt-1 flex gap-4">
+                                <span>Type: <b><%= abel.type %></b></span>
+                                <span>Difficulty: <b class="text-orange-500"><%= abel.difficulty %></b></span>
+                            </div>
+                        </div>
+                        <form action="/admin/delete-abel" method="POST" onsubmit="return confirm('Delete this item?');">
+                            <input type="hidden" name="id" value="<%= abel.id %>">
+                            <button type="submit" class="text-red-500 hover:text-red-700 p-2 rounded-full hover:bg-red-50 transition">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                            </button>
+                        </form>
+                    </div>
+                    <% }); %>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- MODALS -->
+
+    <!-- 1. Add User Modal -->
+    <div x-show="showModal === 'addUser'" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" x-cloak>
+        <div class="bg-white rounded-xl p-6 w-full max-w-md shadow-2xl">
+            <h3 class="text-xl font-bold mb-4">Add User</h3>
+            <form action="/admin/add-user" method="POST" class="space-y-4">
+                <input type="text" name="name" placeholder="Full Name" required class="w-full border p-2 rounded">
+                <input type="email" name="email" placeholder="Email" required class="w-full border p-2 rounded">
+                <select name="role" class="w-full border p-2 rounded"><option value="Student">Student</option><option value="Teacher">Teacher</option><option value="Admin">Admin</option></select>
+                <div class="flex justify-end gap-2"><button type="button" @click="showModal = false" class="px-4 py-2 border rounded">Cancel</button><button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded">Save</button></div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 1b. Edit User Modal -->
+    <div x-show="showModal === 'editUser'" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" x-cloak>
+        <div class="bg-white rounded-xl p-6 w-full max-w-md shadow-2xl">
+            <h3 class="text-xl font-bold mb-4">Edit User</h3>
+            <form action="/admin/edit-user" method="POST" class="space-y-4">
+                <input type="hidden" name="id" x-model="editItem.id">
+                <div><label class="text-xs text-gray-500">Name</label><input type="text" name="name" x-model="editItem.name" required class="w-full border p-2 rounded"></div>
+                <div><label class="text-xs text-gray-500">Email</label><input type="email" name="email" x-model="editItem.email" required class="w-full border p-2 rounded"></div>
+                <div><label class="text-xs text-gray-500">Role</label><select name="role" x-model="editItem.role" class="w-full border p-2 rounded"><option value="Student">Student</option><option value="Teacher">Teacher</option><option value="Admin">Admin</option></select></div>
+                <div class="flex justify-end gap-2 mt-4"><button type="button" @click="showModal = false" class="px-4 py-2 border rounded">Cancel</button><button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded">Update</button></div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 2. Add Module Modal -->
+    <div x-show="showModal === 'addModule'" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" x-cloak>
+        <div class="bg-white rounded-xl p-6 w-full max-w-md shadow-2xl">
+            <h3 class="text-xl font-bold mb-4">Add Module</h3>
+            <form action="/admin/add-module" method="POST" class="space-y-4">
+                <input type="text" name="title" placeholder="Title" required class="w-full border p-2 rounded">
+                <input type="text" name="code" placeholder="Code (e.g. GR-101)" required class="w-full border p-2 rounded">
+                <textarea name="description" placeholder="Description" required class="w-full border p-2 rounded"></textarea>
+                <select name="level" class="w-full border p-2 rounded"><option>Beginner</option><option>Intermediate</option><option>Advanced</option></select>
+                <div class="flex justify-end gap-2"><button type="button" @click="showModal = false" class="px-4 py-2 border rounded">Cancel</button><button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded">Save</button></div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 2b. Edit Module Modal -->
+    <div x-show="showModal === 'editModule'" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" x-cloak>
+        <div class="bg-white rounded-xl p-6 w-full max-w-md shadow-2xl">
+            <h3 class="text-xl font-bold mb-4">Edit Module</h3>
+            <form action="/admin/edit-module" method="POST" class="space-y-4">
+                <input type="hidden" name="id" x-model="editItem.id">
+                <div><label class="text-xs text-gray-500">Code</label><input type="text" name="code" x-model="editItem.code" required class="w-full border p-2 rounded"></div>
+                <div><label class="text-xs text-gray-500">Title</label><input type="text" name="title" x-model="editItem.title" required class="w-full border p-2 rounded"></div>
+                <div><label class="text-xs text-gray-500">Description</label><textarea name="description" x-model="editItem.description" required class="w-full border p-2 rounded h-24"></textarea></div>
+                <div><label class="text-xs text-gray-500">Level</label><select name="level" x-model="editItem.level" class="w-full border p-2 rounded"><option>Beginner</option><option>Intermediate</option><option>Advanced</option></select></div>
+                <div class="flex justify-end gap-2"><button type="button" @click="showModal = false" class="px-4 py-2 border rounded">Cancel</button><button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded">Update Module</button></div>
+            </form>
+        </div>
+    </div>
+
+    <!-- NEW: AI Generate Module Modal -->
+    <div x-show="showModal === 'generateModuleAI'" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" x-cloak>
+        <div class="bg-white rounded-xl p-6 w-full max-w-md shadow-2xl border-t-4 border-blue-500">
+            <h3 class="text-xl font-bold mb-2 text-gray-800">✨ AI Module Generator</h3>
+            <p class="text-sm text-gray-500 mb-4">Enter a topic, and Gemini AI will draft a complete learning module for you.</p>
+            <form action="/admin/generate-module" method="POST" class="space-y-4">
+                <div><label class="block text-sm font-medium text-gray-700">Topic</label><input type="text" name="topic" placeholder="e.g. Introduction to Public Speaking" required class="w-full border p-2 rounded"></div>
+                <div><label class="block text-sm font-medium text-gray-700">Target Level</label><select name="level" class="w-full border p-2 rounded"><option>Beginner</option><option>Intermediate</option><option>Advanced</option></select></div>
+                <div class="flex justify-end gap-2 mt-6"><button type="button" @click="showModal = false" class="px-4 py-2 border rounded">Cancel</button><button type="submit" class="px-4 py-2 ai-gradient text-white rounded">Generate Module</button></div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 3. Manual Add Test Modal -->
+    <div x-show="showModal === 'addTest'" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" x-cloak>
+        <div class="bg-white rounded-xl p-6 w-full max-w-md shadow-2xl">
+            <h3 class="text-xl font-bold mb-4">Add Test Question</h3>
+            <form action="/admin/add-test" method="POST" class="space-y-4">
+                <input type="text" name="question" placeholder="Question" required class="w-full border p-2 rounded">
+                <input type="text" name="answer" placeholder="Correct Answer" required class="w-full border p-2 rounded">
+                <select name="category" class="w-full border p-2 rounded"><option>Grammar</option><option>Vocabulary</option><option>Listening</option></select>
+                <div class="flex justify-end gap-2"><button type="button" @click="showModal = false" class="px-4 py-2 border rounded">Cancel</button><button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded">Save</button></div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 4. AI QUESTION GENERATOR MODAL -->
+    <div x-show="showModal === 'generateAI'" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" x-cloak>
+        <div class="bg-white rounded-xl p-6 w-full max-w-md shadow-2xl border-t-4 border-purple-500">
+            <h3 class="text-xl font-bold mb-2 text-gray-800">✨ AI Question Generator</h3>
+            <p class="text-sm text-gray-500 mb-4">Enter a topic, and Gemini AI will create a test question for you.</p>
+            <form action="/admin/generate-test" method="POST" class="space-y-4">
+                <div><label class="block text-sm font-medium text-gray-700">Topic / Context</label><input type="text" name="topic" placeholder="e.g. Past Tense Verbs..." required class="w-full border p-2 rounded"></div>
+                <div class="flex justify-end gap-2 mt-6"><button type="button" @click="showModal = false" class="px-4 py-2 border rounded">Cancel</button><button type="submit" class="px-4 py-2 ai-gradient text-white rounded">Generate Question</button></div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 5. Add ABEL Modal -->
+    <div x-show="showModal === 'addAbel'" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" x-cloak>
+        <div class="bg-white rounded-xl p-6 w-full max-w-lg shadow-2xl">
+            <h3 class="text-xl font-bold mb-4 text-purple-800">Add Final Assessment</h3>
+            <form action="/admin/add-abel" method="POST" class="space-y-4">
+                <textarea name="prompt" placeholder="Prompt/Question" required class="w-full border p-2 rounded h-24"></textarea>
+                <div class="grid grid-cols-2 gap-4"><select name="type" class="border p-2 rounded"><option>Speaking</option><option>Writing</option></select><select name="difficulty" class="border p-2 rounded"><option>Standard</option><option>Hard</option></select></div>
+                <div class="flex justify-end gap-2"><button type="button" @click="showModal = false" class="px-4 py-2 border rounded">Cancel</button><button type="submit" class="px-4 py-2 bg-purple-600 text-white rounded">Save</button></div>
+            </form>
+        </div>
+    </div>
+
+</body>
+</html>

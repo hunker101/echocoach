@@ -24,14 +24,14 @@ router.post('/admin/add-user', isAuth, adminController.addUser);
 router.post('/admin/edit-user', isAuth, adminController.editUser);
 router.post('/admin/delete-user', isAuth, adminController.deleteUser);
 
-// Module Actions
-router.post('/admin/add-module', isAuth, adminController.addModule);
-router.post('/admin/generate-module', isAuth, adminController.generateModule); // NEW ROUTE
-router.post('/admin/edit-module', isAuth, adminController.editModule);
-router.post('/admin/delete-module', isAuth, adminController.deleteModule);
+// Module Actions (NEW FLOW)
+router.post('/admin/validate-module', isAuth, adminController.validateModule);
+router.post('/admin/regenerate-module', isAuth, adminController.regenerateModuleContent);
 
 // Test Bank Actions
 router.post('/admin/add-test', isAuth, adminController.addAssessment);
+router.post('/admin/edit-test', isAuth, adminController.editAssessment);
+router.post('/admin/delete-test', isAuth, adminController.deleteAssessment);
 router.post('/admin/generate-test', isAuth, adminController.generateQuestion);
 
 // ABEL Actions

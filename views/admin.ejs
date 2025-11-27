@@ -40,6 +40,7 @@
     selectedUser: null,
     selectedModuleData: null,
     activeSkill: null,
+    currentModuleIndex: 0,
     getLevelClass(level) {
         if (!level) return 'bg-gray-100 text-gray-800';
         if (level === 'Beginner') return 'bg-green-100 text-green-800';
@@ -73,7 +74,7 @@
         <aside class="w-64 bg-white border-r border-gray-200 hidden md:block flex-shrink-0">
             <div class="p-4 space-y-1">
                 <a href="/admin/dashboard" class="w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-600 hover:bg-gray-50 transition">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6z"></path></svg>
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6z"></path></svg>
                     <span>Dashboard</span>
                 </a>
                 <div class="pt-4 pb-2 px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Manage</div>
@@ -104,7 +105,7 @@
             <div x-show="currentTab === 'users'" x-transition.opacity>
                 <div class="flex justify-between items-center mb-6">
                     <h2 class="text-2xl font-bold text-gray-800">User Management</h2>
-                    <button @click="showModal = 'addUser'" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 shadow-sm transition">+ Add User</button>
+                    <!-- REMOVED: Add User Button -->
                 </div>
                 <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                     <table class="min-w-full divide-y divide-gray-200">
@@ -119,7 +120,8 @@
                         <tbody class="bg-white divide-y divide-gray-200">
                             <% users.forEach(function(user) { %>
                             <tr 
-                                @click='showModal = "viewStats"; viewUser = { name: <%- JSON.stringify(user.name || "").replace(/'/g, "&#39;") %>, email: <%- JSON.stringify(user.email || "").replace(/'/g, "&#39;") %>, role: <%- JSON.stringify(user.role || "").replace(/'/g, "&#39;") %>, level: <%- JSON.stringify(user.level || "").replace(/'/g, "&#39;") %>, stats: <%- JSON.stringify(user.stats || {}) %> }'
+                                data-user='<%- JSON.stringify(user) %>'
+                                @click="showModal = 'viewStats'; viewUser = JSON.parse($el.dataset.user)"
                                 class="hover:bg-gray-50 transition cursor-pointer group"
                             >
                                 <td class="px-6 py-4">
@@ -143,7 +145,10 @@
 
                                 <td class="px-6 py-4 text-right text-sm font-medium">
                                     <div class="flex justify-end space-x-3">
-                                        <button @click.stop='showModal = "editUser"; editItem = { id: <%- JSON.stringify(user.id) %>, name: <%- JSON.stringify(user.name || "").replace(/'/g, "&#39;") %>, email: <%- JSON.stringify(user.email || "").replace(/'/g, "&#39;") %>, role: <%- JSON.stringify(user.role || "").replace(/'/g, "&#39;") %>, level: <%- JSON.stringify(user.level || "").replace(/'/g, "&#39;") %> }' class="text-blue-600 hover:text-blue-900 bg-gray-100 p-2 rounded-full hover:bg-blue-100 transition">
+                                        <button 
+                                            data-user='<%- JSON.stringify(user) %>'
+                                            @click.stop="showModal = 'editUser'; editItem = JSON.parse($el.dataset.user)" 
+                                            class="text-blue-600 hover:text-blue-900 bg-gray-100 p-2 rounded-full hover:bg-blue-100 transition">
                                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                                         </button>
                                         <form action="/admin/delete-user" method="POST" onsubmit="return confirm('Are you sure?');" @click.stop>
@@ -183,7 +188,8 @@
                             <tbody class="bg-white divide-y divide-gray-200">
                                 <% pendingModules.forEach(function(item) { %>
                                 <tr 
-                                    @click='moduleView = "detail"; selectedUser = <%- JSON.stringify(item) %>'
+                                    data-item='<%- JSON.stringify(item) %>'
+                                    @click="moduleView = 'detail'; selectedUser = JSON.parse($el.dataset.item); currentModuleIndex = 0"
                                     class="hover:bg-gray-50 transition cursor-pointer group"
                                 >
                                     <td class="px-6 py-4">
@@ -192,7 +198,6 @@
                                     </td>
                                     <td class="px-6 py-4 text-sm text-gray-500"><%= item.userRole %></td>
                                     
-                                    <!-- UPDATED: Plain Rank/Level Column (Removed Color) -->
                                     <td class="px-6 py-4 whitespace-nowrap">
                                         <span class="text-sm font-semibold text-gray-900">
                                             <%= item.userRank %>
@@ -227,20 +232,13 @@
                             <h2 class="text-xl font-bold text-gray-800 flex items-center">
                                 <span x-text="selectedUser?.userName"></span> 
                                 <span class="text-gray-400 mx-2">•</span> 
-                                <!-- Added colored badge to Detail Header -->
                                 <span class="px-2 py-0.5 rounded-full text-xs font-semibold" :class="getLevelClass(selectedUser?.userRank)" x-text="selectedUser?.userRank"></span>
                             </h2>
                         </div>
                         <div class="flex gap-3">
-                            <!-- Regenerate -->
-                            <form action="/admin/regenerate-module" method="POST" class="inline">
-                                <button type="submit" class="bg-purple-500 text-white px-4 py-2 rounded shadow hover:bg-purple-600 transition text-sm font-medium flex items-center gap-2">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
-                                    Regenerate Module
-                                </button>
-                            </form>
+                            <!-- REMOVED Regenerate Button from Header -->
                             
-                            <!-- Validate (CONDITIONAL: Disabled if already validated) -->
+                            <!-- Validate (CONDITIONAL) -->
                             <template x-if="selectedUser?.status !== 'Validated'">
                                 <form action="/admin/validate-module" method="POST" class="inline">
                                     <input type="hidden" name="id" :value="selectedUser?.id">
@@ -265,41 +263,61 @@
                         </div>
                     </div>
 
-                    <!-- List of Modules for this User -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        <!-- Loop through modules of selected user -->
-                        <template x-for="mod in selectedUser?.modules" :key="mod.moduleId">
-                            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                                <div class="flex justify-between items-center mb-4 border-b pb-2">
-                                    <h3 class="font-bold text-gray-800 text-lg" x-text="mod.title"></h3>
-                                    <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
-                                </div>
-                                
-                                <!-- List of Skills inside Module -->
-                                <div class="space-y-3">
-                                    <!-- Writing -->
-                                    <div @click="moduleView = 'content'; selectedModuleData = mod; activeSkill = 'writing'" class="flex items-center gap-3 cursor-pointer group hover:bg-blue-50 p-2 rounded-lg transition">
-                                        <div class="bg-blue-100 p-2 rounded-full text-blue-600"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg></div>
-                                        <div><h4 class="font-semibold text-gray-700 text-sm group-hover:text-blue-700">Writing</h4><p class="text-xs text-gray-500 line-clamp-1" x-text="mod.content.writing.desc"></p></div>
-                                    </div>
-                                    <!-- Reading -->
-                                    <div @click="moduleView = 'content'; selectedModuleData = mod; activeSkill = 'reading'" class="flex items-center gap-3 cursor-pointer group hover:bg-blue-50 p-2 rounded-lg transition">
-                                        <div class="bg-green-100 p-2 rounded-full text-green-600"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg></div>
-                                        <div><h4 class="font-semibold text-gray-700 text-sm group-hover:text-blue-700">Reading</h4><p class="text-xs text-gray-500 line-clamp-1" x-text="mod.content.reading.desc"></p></div>
-                                    </div>
-                                    <!-- Listening -->
-                                    <div @click="moduleView = 'content'; selectedModuleData = mod; activeSkill = 'listening'" class="flex items-center gap-3 cursor-pointer group hover:bg-blue-50 p-2 rounded-lg transition">
-                                        <div class="bg-purple-100 p-2 rounded-full text-purple-600"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"></path></svg></div>
-                                        <div><h4 class="font-semibold text-gray-700 text-sm group-hover:text-blue-700">Listening</h4><p class="text-xs text-gray-500 line-clamp-1" x-text="mod.content.listening.desc"></p></div>
-                                    </div>
-                                    <!-- Speaking -->
-                                    <div @click="moduleView = 'content'; selectedModuleData = mod; activeSkill = 'speaking'" class="flex items-center gap-3 cursor-pointer group hover:bg-blue-50 p-2 rounded-lg transition">
-                                        <div class="bg-yellow-100 p-2 rounded-full text-yellow-600"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg></div>
-                                        <div><h4 class="font-semibold text-gray-700 text-sm group-hover:text-blue-700">Speaking</h4><p class="text-xs text-gray-500 line-clamp-1" x-text="mod.content.speaking.desc"></p></div>
-                                    </div>
-                                </div>
+                    <!-- Single Stretched Module View -->
+                    <div class="w-full bg-white rounded-xl shadow-sm border border-gray-200 p-6" x-show="selectedUser?.modules?.length > 0">
+                        <div class="flex justify-between items-center mb-4 border-b pb-2">
+                            <h3 class="font-bold text-gray-800 text-lg" x-text="selectedUser?.modules[currentModuleIndex]?.title"></h3>
+                            <!-- Optional: Add print icon here if desired -->
+                        </div>
+                        
+                        <!-- List of Skills inside Module -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <!-- Writing -->
+                            <div @click="moduleView = 'content'; selectedModuleData = selectedUser?.modules[currentModuleIndex]; activeSkill = 'writing'" class="flex items-center gap-3 cursor-pointer group hover:bg-blue-50 p-3 rounded-lg transition border border-transparent hover:border-blue-100">
+                                <div class="bg-blue-100 p-2 rounded-full text-blue-600"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg></div>
+                                <div><h4 class="font-semibold text-gray-700 group-hover:text-blue-700">Writing</h4><p class="text-xs text-gray-500 line-clamp-1" x-text="selectedUser?.modules[currentModuleIndex]?.content?.writing?.desc"></p></div>
                             </div>
-                        </template>
+                            <!-- Reading -->
+                            <div @click="moduleView = 'content'; selectedModuleData = selectedUser?.modules[currentModuleIndex]; activeSkill = 'reading'" class="flex items-center gap-3 cursor-pointer group hover:bg-blue-50 p-3 rounded-lg transition border border-transparent hover:border-blue-100">
+                                <div class="bg-green-100 p-2 rounded-full text-green-600"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg></div>
+                                <div><h4 class="font-semibold text-gray-700 group-hover:text-blue-700">Reading</h4><p class="text-xs text-gray-500 line-clamp-1" x-text="selectedUser?.modules[currentModuleIndex]?.content?.reading?.desc"></p></div>
+                            </div>
+                            <!-- Listening -->
+                            <div @click="moduleView = 'content'; selectedModuleData = selectedUser?.modules[currentModuleIndex]; activeSkill = 'listening'" class="flex items-center gap-3 cursor-pointer group hover:bg-blue-50 p-3 rounded-lg transition border border-transparent hover:border-blue-100">
+                                <div class="bg-purple-100 p-2 rounded-full text-purple-600"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"></path></svg></div>
+                                <div><h4 class="font-semibold text-gray-700 group-hover:text-blue-700">Listening</h4><p class="text-xs text-gray-500 line-clamp-1" x-text="selectedUser?.modules[currentModuleIndex]?.content?.listening?.desc"></p></div>
+                            </div>
+                            <!-- Speaking -->
+                            <div @click="moduleView = 'content'; selectedModuleData = selectedUser?.modules[currentModuleIndex]; activeSkill = 'speaking'" class="flex items-center gap-3 cursor-pointer group hover:bg-blue-50 p-3 rounded-lg transition border border-transparent hover:border-blue-100">
+                                <div class="bg-yellow-100 p-2 rounded-full text-yellow-600"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg></div>
+                                <div><h4 class="font-semibold text-gray-700 group-hover:text-blue-700">Speaking</h4><p class="text-xs text-gray-500 line-clamp-1" x-text="selectedUser?.modules[currentModuleIndex]?.content?.speaking?.desc"></p></div>
+                            </div>
+                        </div>
+
+                        <!-- Module Navigation (Next/Previous Buttons) -->
+                        <div class="flex justify-center items-center gap-4 mt-6 border-t pt-4" x-show="selectedUser?.modules?.length > 1">
+                            <button 
+                                @click="if(currentModuleIndex > 0) currentModuleIndex--" 
+                                :disabled="currentModuleIndex === 0"
+                                class="px-4 py-2 rounded-full border hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-gray-600 text-sm font-medium"
+                            >
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                                Previous Module
+                            </button>
+                            
+                            <span class="text-sm font-medium text-gray-900">
+                                <span x-text="currentModuleIndex + 1"></span> / <span x-text="selectedUser?.modules?.length"></span>
+                            </span>
+                            
+                            <button 
+                                @click="if(currentModuleIndex < selectedUser?.modules?.length - 1) currentModuleIndex++" 
+                                :disabled="currentModuleIndex === selectedUser?.modules?.length - 1"
+                                class="px-4 py-2 rounded-full border hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-gray-600 text-sm font-medium"
+                            >
+                                Next Module
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -315,6 +333,15 @@
                                 <h2 class="text-2xl font-bold text-gray-900 capitalize" x-text="activeSkill"></h2>
                                 <p class="text-sm text-gray-500" x-text="selectedModuleData?.title"></p>
                             </div>
+                        </div>
+                        <!-- Regenerate Button (MOVED HERE) -->
+                        <div class="flex gap-2">
+                             <form action="/admin/regenerate-module" method="POST" class="inline">
+                                <button type="submit" class="bg-purple-100 text-purple-700 px-4 py-2 rounded font-medium text-sm hover:bg-purple-200 transition flex items-center gap-2">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                                    Regenerate Content
+                                </button>
+                            </form>
                         </div>
                     </div>
 
@@ -380,6 +407,7 @@
                         if (test.category === 'Speaking') { borderClass = 'border-green-500'; badgeClass = 'bg-green-100 text-green-700'; icon = '🎤'; } 
                         else if (test.category === 'Listening') { borderClass = 'border-blue-500'; badgeClass = 'bg-blue-100 text-blue-700'; icon = '🎧'; } 
                         else if (test.category === 'Writing') { borderClass = 'border-purple-500'; badgeClass = 'bg-purple-100 text-purple-700'; icon = '📝'; }
+                        else if (test.category === 'Reading') { borderClass = 'border-yellow-500'; badgeClass = 'bg-yellow-100 text-yellow-700'; icon = '📖'; }
                     %>
                     <div class="bg-white rounded-lg shadow-sm border-l-4 <%= borderClass %> p-5 flex justify-between items-center hover:shadow-md transition duration-200 group">
                         <div class="flex-1 pr-4">
@@ -392,7 +420,10 @@
                             <h4 class="text-lg font-medium text-gray-900 leading-tight"><%= test.question %></h4>
                         </div>
                         <div class="flex items-center space-x-2 opacity-80 group-hover:opacity-100 transition">
-                            <button @click='showModal = "editTest"; editItem = { id: <%- JSON.stringify(test.id) %>, question: <%- JSON.stringify(test.question || "").replace(/'/g, "&#39;") %>, category: <%- JSON.stringify(test.category || "").replace(/'/g, "&#39;") %> }' class="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-full transition" title="Edit">
+                            <button 
+                                data-test='<%- JSON.stringify(test) %>'
+                                @click.stop="showModal = 'editTest'; editItem = JSON.parse($el.dataset.test)" 
+                                class="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-full transition" title="Edit">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
                             </button>
                             <form action="/admin/delete-test" method="POST" onsubmit="return confirm('Delete this question?');">
@@ -429,24 +460,168 @@
         </main>
     </div>
 
-    <!-- MODALS (UNCHANGED) -->
-    <!-- Module Stats -->
-    <div x-show="showModal === 'moduleStats'" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50" x-cloak><div class="bg-gray-100 rounded-[2.5rem] p-6 w-full max-w-sm shadow-2xl transform transition-all border-[8px] border-gray-800 relative" @click.away="showModal = false"><div class="absolute top-0 left-1/2 transform -translate-x-1/2 w-32 h-6 bg-gray-800 rounded-b-xl"></div><div class="mt-8 flex justify-between items-center mb-6"><button @click="showModal = false" class="text-gray-800"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg></button><div class="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-gray-600 font-bold text-sm" x-text="selectedUser?.userName?.charAt(0) || 'U'"></div></div><div class="bg-white rounded-[2rem] p-6 shadow-sm text-center mb-4"><h3 class="font-bold text-gray-800 text-xl">WELL DONE!</h3><p class="text-blue-600 font-bold text-lg mb-6">Estimated Band</p><div class="w-32 h-32 rounded-full bg-blue-600 text-white flex flex-col items-center justify-center mx-auto mb-6 shadow-lg border-4 border-blue-400"><span class="text-sm font-medium opacity-90">Score</span><span class="text-4xl font-bold" x-text="selectedUser?.modules?.[0]?.scores?.overall || '0.0'"></span></div><div class="bg-blue-600 text-white rounded-xl p-4 text-left text-sm flex items-start gap-3 shadow"><svg class="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg><p class="leading-snug">Performance indicates <span x-text="(selectedUser?.modules?.[0]?.scores?.overall || 0) >= 6 ? 'strong' : 'developing'"></span> competency.</p></div></div><button @click="showModal = false" class="w-full bg-blue-600 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-blue-700 transition">Done</button></div></div>
+    <!-- MODALS -->
+
+    <!-- Module Stats (NEW CLEAN UI) -->
+    <!-- Replaced phone mockup with clean white modal -->
+    <div x-show="showModal === 'moduleStats'" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" x-cloak>
+        <div class="bg-white rounded-xl p-8 w-full max-w-lg shadow-2xl transform transition-all" @click.away="showModal = false">
+            <!-- Header with Close Icon -->
+            <div class="flex justify-between items-start mb-6">
+                <div>
+                    <h3 class="text-2xl font-bold text-gray-900" x-text="selectedUser?.userName || 'User'"></h3>
+                    <div class="text-gray-500 text-sm mt-1" x-text="selectedUser?.userEmail"></div>
+                    <span class="inline-block mt-2 px-3 py-1 rounded-full text-xs font-semibold"
+                          :class="getLevelClass(selectedUser?.userRank)" 
+                          x-text="selectedUser?.userRank"></span>
+                </div>
+                <button @click="showModal = false" class="text-gray-400 hover:text-gray-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Performance Overview Title -->
+            <h4 class="text-lg font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-100">Performance Overview</h4>
+
+            <!-- Scores Section -->
+            <div class="space-y-5">
+                <!-- Speaking -->
+                <div>
+                    <div class="flex justify-between text-sm mb-1">
+                        <span class="text-gray-600 font-medium">Speaking</span>
+                        <span class="font-bold text-blue-600" x-text="((selectedUser?.modules?.[currentModuleIndex]?.scores?.speaking || 0) / 9 * 100).toFixed(0) + '%'"></span>
+                    </div>
+                    <div class="w-full bg-gray-100 rounded-full h-2.5">
+                        <div class="bg-blue-600 h-2.5 rounded-full" :style="'width: ' + ((selectedUser?.modules?.[currentModuleIndex]?.scores?.speaking || 0) / 9 * 100) + '%'"></div>
+                    </div>
+                </div>
+
+                <!-- Listening -->
+                <div>
+                    <div class="flex justify-between text-sm mb-1">
+                        <span class="text-gray-600 font-medium">Listening</span>
+                        <span class="font-bold text-green-500" x-text="((selectedUser?.modules?.[currentModuleIndex]?.scores?.listening || 0) / 9 * 100).toFixed(0) + '%'"></span>
+                    </div>
+                    <div class="w-full bg-gray-100 rounded-full h-2.5">
+                        <div class="bg-green-500 h-2.5 rounded-full" :style="'width: ' + ((selectedUser?.modules?.[currentModuleIndex]?.scores?.listening || 0) / 9 * 100) + '%'"></div>
+                    </div>
+                </div>
+
+                <!-- Reading -->
+                <div>
+                    <div class="flex justify-between text-sm mb-1">
+                        <span class="text-gray-600 font-medium">Reading</span>
+                        <span class="font-bold text-yellow-500" x-text="((selectedUser?.modules?.[currentModuleIndex]?.scores?.reading || 0) / 9 * 100).toFixed(0) + '%'"></span>
+                    </div>
+                    <div class="w-full bg-gray-100 rounded-full h-2.5">
+                        <div class="bg-yellow-500 h-2.5 rounded-full" :style="'width: ' + ((selectedUser?.modules?.[currentModuleIndex]?.scores?.reading || 0) / 9 * 100) + '%'"></div>
+                    </div>
+                </div>
+
+                <!-- Writing -->
+                <div>
+                    <div class="flex justify-between text-sm mb-1">
+                        <span class="text-gray-600 font-medium">Writing</span>
+                        <span class="font-bold text-purple-500" x-text="((selectedUser?.modules?.[currentModuleIndex]?.scores?.writing || 0) / 9 * 100).toFixed(0) + '%'"></span>
+                    </div>
+                    <div class="w-full bg-gray-100 rounded-full h-2.5">
+                        <div class="bg-purple-500 h-2.5 rounded-full" :style="'width: ' + ((selectedUser?.modules?.[currentModuleIndex]?.scores?.writing || 0) / 9 * 100) + '%'"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer Button -->
+            <div class="mt-8 flex justify-end">
+                <button @click="showModal = false" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-6 py-2 rounded-lg font-medium transition">Close</button>
+            </div>
+        </div>
+    </div>
     
     <!-- User Stats -->
     <div x-show="showModal === 'viewStats'" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" x-cloak><div class="bg-white rounded-xl p-8 w-full max-w-lg shadow-2xl transform transition-all" @click.away="showModal = false"><div class="flex justify-between items-start mb-6"><div><h3 class="text-2xl font-bold text-gray-800" x-text="viewUser.name"></h3><div class="text-gray-500 text-sm mt-1" x-text="viewUser.email"></div><span class="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full mt-2" x-text="viewUser.level"></span></div><button @click="showModal = false" class="text-gray-400 hover:text-gray-600"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button></div><h4 class="font-semibold text-gray-700 mb-4 border-b pb-2">Performance Overview</h4><div class="space-y-4"><div><div class="flex justify-between text-sm mb-1"><span class="font-medium text-gray-700">Speaking</span><span class="font-bold text-blue-600" x-text="viewUser.stats?.speaking + '%'"></span></div><div class="w-full bg-gray-200 rounded-full h-2.5"><div class="bg-blue-600 h-2.5 rounded-full transition-all duration-500" :style="'width: ' + (viewUser.stats?.speaking || 0) + '%'"></div></div></div><div><div class="flex justify-between text-sm mb-1"><span class="font-medium text-gray-700">Listening</span><span class="font-bold text-green-600" x-text="viewUser.stats?.listening + '%'"></span></div><div class="w-full bg-gray-200 rounded-full h-2.5"><div class="bg-green-500 h-2.5 rounded-full transition-all duration-500" :style="'width: ' + (viewUser.stats?.listening || 0) + '%'"></div></div></div><div><div class="flex justify-between text-sm mb-1"><span class="font-medium text-gray-700">Reading</span><span class="font-bold text-yellow-600" x-text="viewUser.stats?.reading + '%'"></span></div><div class="w-full bg-gray-200 rounded-full h-2.5"><div class="bg-yellow-500 h-2.5 rounded-full transition-all duration-500" :style="'width: ' + (viewUser.stats?.reading || 0) + '%'"></div></div></div><div><div class="flex justify-between text-sm mb-1"><span class="font-medium text-gray-700">Writing</span><span class="font-bold text-purple-600" x-text="viewUser.stats?.writing + '%'"></span></div><div class="w-full bg-gray-200 rounded-full h-2.5"><div class="bg-purple-500 h-2.5 rounded-full transition-all duration-500" :style="'width: ' + (viewUser.stats?.writing || 0) + '%'"></div></div></div></div><div class="mt-8 flex justify-end"><button @click="showModal = false" class="px-4 py-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition">Close</button></div></div></div>
     
-    <!-- Add User -->
-    <div x-show="showModal === 'addUser'" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" x-cloak><div class="bg-white rounded-xl p-6 w-full max-w-md shadow-2xl"><h3 class="text-xl font-bold mb-4">Add User</h3><form action="/admin/add-user" method="POST" class="space-y-4"><input type="text" name="name" placeholder="Full Name" required class="w-full border p-2 rounded"><input type="email" name="email" placeholder="Email" required class="w-full border p-2 rounded"><div class="grid grid-cols-2 gap-4"><select name="role" class="w-full border p-2 rounded"><option value="Student">Student</option><option value="Admin">Admin</option></select><select name="level" class="w-full border p-2 rounded"><option value="Beginner">Beginner</option><option value="Pre-Intermediate">Pre-Intermediate</option><option value="Intermediate">Intermediate</option><option value="Advanced">Advanced</option></select></div><div class="flex justify-end gap-2"><button type="button" @click="showModal = false" class="px-4 py-2 border rounded">Cancel</button><button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded">Save</button></div></form></div></div>
+    <!-- Add User (REMOVED PER REQUEST) -->
+    <!-- <div x-show="showModal === 'addUser'" ...> ... </div> -->
+
+    <!-- 1b. Edit User Modal (UPDATED: Replaced Readonly Input with Disabled Select) -->
+    <div x-show="showModal === 'editUser'" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" x-cloak>
+        <div class="bg-white rounded-xl p-6 w-full max-w-md shadow-2xl">
+            <h3 class="text-xl font-bold mb-4">Edit User</h3>
+            <form action="/admin/edit-user" method="POST" class="space-y-4">
+                <input type="hidden" name="id" x-model="editItem.id">
+                <div>
+                    <label class="text-xs text-gray-500">Name</label>
+                    <input type="text" name="name" x-model="editItem.name" required class="w-full border p-2 rounded">
+                </div>
+                <div>
+                    <label class="text-xs text-gray-500">Email</label>
+                    <input type="email" name="email" x-model="editItem.email" required class="w-full border p-2 rounded">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-xs text-gray-500">Role</label>
+                        <select name="role" x-model="editItem.role" class="w-full border p-2 rounded">
+                            <option value="Student">Student</option>
+                            <option value="Admin">Admin</option>
+                        </select>
+                    </div>
+                    <!-- UPDATED: Level is now a DISABLED SELECT to match requested UI -->
+                    <div>
+                        <label class="text-xs text-gray-500">Level</label>
+                        <select name="level" x-model="editItem.level" disabled class="w-full border p-2 rounded bg-gray-50 text-gray-500 cursor-not-allowed">
+                            <option value="Beginner">Beginner</option>
+                            <option value="Pre-Intermediate">Pre-Intermediate</option>
+                            <option value="Intermediate">Intermediate</option>
+                            <option value="Advanced">Advanced</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="flex justify-end gap-2 mt-4">
+                    <button type="button" @click="showModal = false" class="px-4 py-2 border rounded">Cancel</button>
+                    <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded">Update</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 3. Manual Add Test Modal (UPDATED WITH READING OPTION) -->
+    <div x-show="showModal === 'addTest'" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" x-cloak>
+        <div class="bg-white rounded-xl p-6 w-full max-w-md shadow-2xl">
+            <h3 class="text-xl font-bold mb-4">Add Test Question</h3>
+            <form action="/admin/add-test" method="POST" class="space-y-4">
+                <input type="text" name="question" placeholder="Question" required class="w-full border p-2 rounded">
+                <select name="category" class="w-full border p-2 rounded">
+                    <option value="Speaking">Speaking</option>
+                    <option value="Listening">Listening</option>
+                    <option value="Writing">Writing</option>
+                    <option value="Reading">Reading</option> <!-- Added Reading -->
+                </select>
+                <div class="flex justify-end gap-2"><button type="button" @click="showModal = false" class="px-4 py-2 border rounded">Cancel</button><button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded">Save</button></div>
+            </form>
+        </div>
+    </div>
     
-    <!-- Edit User -->
-    <div x-show="showModal === 'editUser'" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" x-cloak><div class="bg-white rounded-xl p-6 w-full max-w-md shadow-2xl"><h3 class="text-xl font-bold mb-4">Edit User</h3><form action="/admin/edit-user" method="POST" class="space-y-4"><input type="hidden" name="id" x-model="editItem.id"><div><label class="text-xs text-gray-500">Name</label><input type="text" name="name" x-model="editItem.name" required class="w-full border p-2 rounded"></div><div><label class="text-xs text-gray-500">Email</label><input type="email" name="email" x-model="editItem.email" required class="w-full border p-2 rounded"></div><div class="grid grid-cols-2 gap-4"><div><label class="text-xs text-gray-500">Role</label><select name="role" x-model="editItem.role" class="w-full border p-2 rounded"><option value="Student">Student</option><option value="Admin">Admin</option></select></div><div><label class="text-xs text-gray-500">Level</label><select name="level" x-model="editItem.level" class="w-full border p-2 rounded"><option value="Beginner">Beginner</option><option value="Pre-Intermediate">Pre-Intermediate</option><option value="Intermediate">Intermediate</option><option value="Advanced">Advanced</option></select></div></div><div class="flex justify-end gap-2 mt-4"><button type="button" @click="showModal = false" class="px-4 py-2 border rounded">Cancel</button><button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded">Update</button></div></form></div></div>
-    
-    <!-- Add Test -->
-    <div x-show="showModal === 'addTest'" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" x-cloak><div class="bg-white rounded-xl p-6 w-full max-w-md shadow-2xl"><h3 class="text-xl font-bold mb-4">Add Test Question</h3><form action="/admin/add-test" method="POST" class="space-y-4"><input type="text" name="question" placeholder="Question" required class="w-full border p-2 rounded"><select name="category" class="w-full border p-2 rounded"><option value="Speaking">Speaking</option><option value="Listening">Listening</option><option value="Writing">Writing</option></select><div class="flex justify-end gap-2"><button type="button" @click="showModal = false" class="px-4 py-2 border rounded">Cancel</button><button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded">Save</button></div></form></div></div>
-    
-    <!-- Edit Test -->
-    <div x-show="showModal === 'editTest'" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" x-cloak><div class="bg-white rounded-xl p-6 w-full max-w-md shadow-2xl"><h3 class="text-xl font-bold mb-4">Edit Test Question</h3><form action="/admin/edit-test" method="POST" class="space-y-4"><input type="hidden" name="id" x-model="editItem.id"><div><label class="text-xs text-gray-500">Question</label><input type="text" name="question" x-model="editItem.question" required class="w-full border p-2 rounded"></div><div><label class="text-xs text-gray-500">Category</label><select name="category" x-model="editItem.category" class="w-full border p-2 rounded"><option value="Speaking">Speaking</option><option value="Listening">Listening</option><option value="Writing">Writing</option></select></div><div class="flex justify-end gap-2 mt-4"><button type="button" @click="showModal = false" class="px-4 py-2 border rounded">Cancel</button><button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded">Update</button></div></form></div></div>
+    <!-- 3b. Edit Test Modal (UPDATED WITH READING OPTION) -->
+    <div x-show="showModal === 'editTest'" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" x-cloak>
+        <div class="bg-white rounded-xl p-6 w-full max-w-md shadow-2xl">
+            <h3 class="text-xl font-bold mb-4">Edit Test Question</h3>
+            <form action="/admin/edit-test" method="POST" class="space-y-4">
+                <input type="hidden" name="id" x-model="editItem.id">
+                <div><label class="text-xs text-gray-500">Question</label><input type="text" name="question" x-model="editItem.question" required class="w-full border p-2 rounded"></div>
+                <div><label class="text-xs text-gray-500">Category</label>
+                    <select name="category" x-model="editItem.category" class="w-full border p-2 rounded">
+                        <option value="Speaking">Speaking</option>
+                        <option value="Listening">Listening</option>
+                        <option value="Writing">Writing</option>
+                        <option value="Reading">Reading</option> <!-- Added Reading -->
+                    </select>
+                </div>
+                <div class="flex justify-end gap-2 mt-4"><button type="button" @click="showModal = false" class="px-4 py-2 border rounded">Cancel</button><button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded">Update</button></div>
+            </form>
+        </div>
+    </div>
     
     <!-- AI Gen -->
     <div x-show="showModal === 'generateAI'" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" x-cloak><div class="bg-white rounded-xl p-6 w-full max-w-md shadow-2xl border-t-4 border-purple-500"><h3 class="text-xl font-bold mb-2 text-gray-800">✨ AI Question Generator</h3><p class="text-sm text-gray-500 mb-4">Enter a topic, and Gemini AI will create a test question for you.</p><form action="/admin/generate-test" method="POST" class="space-y-4"><div><label class="block text-sm font-medium text-gray-700">Topic / Context</label><input type="text" name="topic" placeholder="e.g. Past Tense Verbs..." required class="w-full border p-2 rounded"></div><div class="flex justify-end gap-2 mt-6"><button type="button" @click="showModal = false" class="px-4 py-2 border rounded text-gray-600">Cancel</button><button type="submit" class="px-4 py-2 ai-gradient text-white rounded shadow-md hover:opacity-90">Generate & Save</button></div></form></div></div>

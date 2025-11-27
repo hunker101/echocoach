@@ -6,7 +6,6 @@ const db = {
         { id: 4, name: 'Alice Wonderland', email: 'alice@wonder.com', role: 'Student', level: 'Beginner', stats: { speaking: 45, listening: 50, reading: 60, writing: 40 } }
     ],
     
-    // Defines the specific module assignments to users
     pendingModules: [
         {
             id: 101,
@@ -16,36 +15,41 @@ const db = {
             userRole: "Student",
             userRank: "Beginner",
             status: "Pending", 
-            // This simulates the "Module 1", "Module 2" list if a user has multiple
+            // Added Module 2 and 3 for testing navigation
             modules: [
                 {
                     moduleId: 1,
-                    title: "Module 1",
+                    title: "Module 1: Foundations",
                     scores: { overall: 5.5, speaking: 5.0, listening: 6.0, reading: 5.5, writing: 5.5 },
                     content: {
-                        writing: { 
-                            title: "Writing", 
-                            desc: "Develop coherent and well-structured responses", 
-                            question: "Describe a memorable trip you took and what you learned from it." 
-                        },
-                        reading: { 
-                            title: "Reading", 
-                            desc: "Boost your comprehension and skimming skills", 
-                            question: "Read the passage about Climate Change and answer the summary questions." 
-                        },
-                        listening: { 
-                            title: "Listening", 
-                            desc: "Enhance your focus and audio understanding", 
-                            question: "Listen to the conversation in a cafe and identify the main topic." 
-                        },
-                        speaking: { 
-                            title: "Speaking", 
-                            desc: "Build fluency, improve pronunciation, and speak with clarity", 
-                            question: "Which area do you find most challenging when speaking English?" 
-                        }
+                        writing: { title: "Writing", desc: "Develop coherent and well-structured responses", question: "Describe a memorable trip you took." },
+                        reading: { title: "Reading", desc: "Boost your comprehension and skimming skills", question: "Read the passage about Climate Change." },
+                        listening: { title: "Listening", desc: "Enhance your focus and audio understanding", question: "Listen to the conversation in a cafe." },
+                        speaking: { title: "Speaking", desc: "Build fluency, improve pronunciation", question: "Which area do you find most challenging?" }
                     }
                 },
-                // You can add Module 2, Module 3 here...
+                {
+                    moduleId: 2,
+                    title: "Module 2: Business English",
+                    scores: { overall: 6.0, speaking: 6.0, listening: 5.5, reading: 6.5, writing: 6.0 },
+                    content: {
+                        writing: { title: "Writing", desc: "Email etiquette and formal reports", question: "Write a formal email to a client." },
+                        reading: { title: "Reading", desc: "Analyzing business reports", question: "Summarize the quarterly financial report." },
+                        listening: { title: "Listening", desc: "Meeting comprehension", question: "Listen to the board meeting minutes." },
+                        speaking: { title: "Speaking", desc: "Presentation skills", question: "Present a new product idea." }
+                    }
+                },
+                {
+                    moduleId: 3,
+                    title: "Module 3: Travel Essentials",
+                    scores: { overall: 5.0, speaking: 5.5, listening: 5.0, reading: 5.0, writing: 4.5 },
+                    content: {
+                        writing: { title: "Writing", desc: "Filling out travel forms", question: "Complete the visa application form." },
+                        reading: { title: "Reading", desc: "Reading signs and schedules", question: "Find the train to London on the schedule." },
+                        listening: { title: "Listening", desc: "Airport announcements", question: "Identify the boarding gate change." },
+                        speaking: { title: "Speaking", desc: "Asking for directions", question: "Ask a local how to get to the museum." }
+                    }
+                }
             ]
         },
         {
@@ -73,14 +77,14 @@ const db = {
     ],
     
     assessments: [
-        { id: 1, category: 'Speaking', question: 'Identify the verb in the sentence: "The cat sleeps."', answer: 'sleeps' },
-        { id: 2, category: 'Writing', question: 'Synonym for "Happy"', answer: 'Joyful' }
+        { id: 1, category: 'Grammar', question: 'Identify the verb in the sentence: "The cat sleeps."', answer: 'sleeps' },
+        { id: 2, category: 'Vocab', question: 'Synonym for "Happy"', answer: 'Joyful' }
     ],
     finalAssessments: [
         { id: 1, prompt: 'Discuss the economic impact of AI in 500 words.', type: 'Writing', difficulty: 'Hard' },
         { id: 2, prompt: 'Read the following passage aloud with correct intonation.', type: 'Speaking', difficulty: 'Standard' }
     ],
-    modules: [] // Admin created generic templates
+    modules: [] 
 };
 
 module.exports = db;

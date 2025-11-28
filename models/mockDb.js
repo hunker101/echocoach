@@ -1,8 +1,8 @@
 const db = {
     users: [
-        { id: 1, name: 'John Doe', email: 'john@example.com', role: 'Student', level: 'Beginner', stats: { speaking: 78, listening: 85, reading: 65, writing: 70 } },
+        { id: 1, name: 'John Doe', email: 'john@example.com', role: 'Student', level: 'Intermediate', stats: { speaking: 78, listening: 85, reading: 65, writing: 70 } },
         { id: 2, name: 'Jane Smith', email: 'jane@admin.com', role: 'Admin', level: 'Advanced', stats: { speaking: 95, listening: 98, reading: 92, writing: 96 } },
-        { id: 3, name: 'Robert Brown', email: 'bob@school.edu', role: 'Teacher', level: 'Advanced', stats: { speaking: 88, listening: 90, reading: 85, writing: 92 } },
+        { id: 3, name: 'Robert Brown', email: 'bob@school.edu', role: 'Teacher', level: 'Pre-Intermediate', stats: { speaking: 88, listening: 90, reading: 85, writing: 92 } },
         { id: 4, name: 'Alice Wonderland', email: 'alice@wonder.com', role: 'Student', level: 'Beginner', stats: { speaking: 45, listening: 50, reading: 60, writing: 40 } }
     ],
     
@@ -77,8 +77,8 @@ const db = {
     ],
     
     assessments: [
-        { id: 1, category: 'Grammar', question: 'Identify the verb in the sentence: "The cat sleeps."', answer: 'sleeps' },
-        { id: 2, category: 'Vocab', question: 'Synonym for "Happy"', answer: 'Joyful' }
+        { id: 1, category: 'Reading', question: 'Identify the verb in the sentence: "The cat sleeps."', answer: 'sleeps' },
+        { id: 2, category: 'Speaking', question: 'Synonym for "Happy"', answer: 'Joyful' }
     ],
     finalAssessments: [
         { id: 1, prompt: 'Discuss the economic impact of AI in 500 words.', type: 'Writing', difficulty: 'Hard' },

@@ -3,6 +3,7 @@ const aiService = require('../services/aiService');
 
 const adminController = {
     
+    // --- Authentication ---
     getLogin: (req, res) => { res.render('login'); },
     postLogin: (req, res) => {
         const { username, password } = req.body;
@@ -17,15 +18,14 @@ const adminController = {
 
     // --- Dashboards ---
     getDashboard: (req, res) => {
-        // Calculate stats
         const validatedCount = db.pendingModules.filter(m => m.status === 'Validated').length;
         const pendingCount = db.pendingModules.filter(m => m.status === 'Pending').length;
 
         const stats = {
             totalUsers: db.users.length,
-            totalModules: db.pendingModules.length, // Total user modules
-            validatedModules: validatedCount,       // NEW STAT
-            pendingModules: pendingCount,           // NEW STAT
+            totalModules: db.pendingModules.length, 
+            validatedModules: validatedCount,       
+            pendingModules: pendingCount,           
             totalQuestions: db.assessments.length,
             totalAbel: db.finalAssessments.length,
             recentUsers: db.users.slice(-5).reverse()
@@ -36,8 +36,8 @@ const adminController = {
     getAdminPanel: (req, res) => {
         res.render('admin', {
             users: db.users,
-            pendingModules: db.pendingModules, // This list now contains both Pending & Validated
-            modules: db.modules, // Admin created modules
+            pendingModules: db.pendingModules, 
+            modules: db.modules, // Add this line to pass admin modules
             assessments: db.assessments,
             finalAssessments: db.finalAssessments
         });
@@ -71,45 +71,54 @@ const adminController = {
         res.redirect('/admin/manage?tab=users');
     },
 
-    // --- Module Management (User Modules) ---
-    
-    // Validate Module (Update Status)
+    // --- Module Management ---
     validateModule: (req, res) => {
         const id = parseInt(req.body.id);
         const index = db.pendingModules.findIndex(m => m.id === id);
         if (index > -1) {
-            // Change status to Validated instead of removing
             db.pendingModules[index].status = "Validated"; 
         }
         res.redirect('/admin/manage?tab=modules');
     },
 
     regenerateModuleContent: async (req, res) => {
-        // Mock regeneration logic
         res.redirect('/admin/manage?tab=modules');
     },
 
-    // Admin Created Modules (Manual)
-    addModule: (req, res) => {
-        db.modules.push({ id: Date.now(), code: req.body.code, title: req.body.title, description: req.body.description, level: req.body.level, lessons: 0 });
-        res.redirect('/admin/manage?tab=modules');
+    addModule: (req, res) => { 
+        db.modules.push({ 
+            id: Date.now(), 
+            code: req.body.code, 
+            title: req.body.title, 
+            description: req.body.description, 
+            level: req.body.level, 
+            lessons: 0 
+        });
+        res.redirect('/admin/manage?tab=modules'); 
     },
-    generateModule: async (req, res) => {
+    generateModule: async (req, res) => { 
         const generatedData = await aiService.generateModule(req.body.topic, req.body.level);
         if (generatedData) { db.modules.push({ id: Date.now(), ...generatedData }); }
-        res.redirect('/admin/manage?tab=modules');
+        res.redirect('/admin/manage?tab=modules'); 
     },
-    editModule: (req, res) => {
+    editModule: (req, res) => { 
         const index = db.modules.findIndex(m => m.id == req.body.id);
         if (index > -1) db.modules[index] = { ...db.modules[index], ...req.body, id: parseInt(req.body.id) };
-        res.redirect('/admin/manage?tab=modules');
+        res.redirect('/admin/manage?tab=modules'); 
     },
-    deleteModule: (req, res) => {
+    deleteModule: (req, res) => { 
         db.modules = db.modules.filter(m => m.id != req.body.id);
-        res.redirect('/admin/manage?tab=modules');
+        res.redirect('/admin/manage?tab=modules'); 
     },
 
-    // Test Bank
+    // NEW: Add Question to Module Test Bank (Redirects to new tab)
+    addModuleQuestion: (req, res) => {
+        // In a real app, you'd save to a specific module's question list
+        console.log("Added Question to Module Test Bank:", req.body);
+        res.redirect('/admin/manage?tab=moduletestbank'); 
+    },
+
+    // --- General Test Bank Management ---
     addAssessment: (req, res) => {
         db.assessments.push({ id: Date.now(), category: req.body.category, question: req.body.question });
         res.redirect('/admin/manage?tab=testbank');
@@ -133,9 +142,16 @@ const adminController = {
         res.redirect('/admin/manage?tab=testbank');
     },
 
-    // ABEL
+    // --- ABEL Final Assessment ---
     addFinalAssessment: (req, res) => {
         db.finalAssessments.push({ id: Date.now(), prompt: req.body.prompt, type: req.body.type, difficulty: req.body.difficulty });
+        res.redirect('/admin/manage?tab=abel');
+    },
+    editFinalAssessment: (req, res) => {
+        const index = db.finalAssessments.findIndex(a => a.id == req.body.id);
+        if (index > -1) {
+            db.finalAssessments[index] = { ...db.finalAssessments[index], prompt: req.body.prompt, type: req.body.type, difficulty: req.body.difficulty, id: parseInt(req.body.id) };
+        }
         res.redirect('/admin/manage?tab=abel');
     },
     deleteFinalAssessment: (req, res) => {

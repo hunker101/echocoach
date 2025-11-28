@@ -24,9 +24,16 @@ router.post('/admin/add-user', isAuth, adminController.addUser);
 router.post('/admin/edit-user', isAuth, adminController.editUser);
 router.post('/admin/delete-user', isAuth, adminController.deleteUser);
 
-// Module Actions (NEW FLOW)
+// Module Actions
 router.post('/admin/validate-module', isAuth, adminController.validateModule);
 router.post('/admin/regenerate-module', isAuth, adminController.regenerateModuleContent);
+router.post('/admin/add-module-question', isAuth, adminController.addModuleQuestion); // NEW
+
+// Legacy Module Actions
+router.post('/admin/add-module', isAuth, adminController.addModule);
+router.post('/admin/generate-module', isAuth, adminController.generateModule);
+router.post('/admin/edit-module', isAuth, adminController.editModule);
+router.post('/admin/delete-module', isAuth, adminController.deleteModule);
 
 // Test Bank Actions
 router.post('/admin/add-test', isAuth, adminController.addAssessment);
@@ -36,6 +43,7 @@ router.post('/admin/generate-test', isAuth, adminController.generateQuestion);
 
 // ABEL Actions
 router.post('/admin/add-abel', isAuth, adminController.addFinalAssessment);
+router.post('/admin/edit-abel', isAuth, adminController.editFinalAssessment); // NEW
 router.post('/admin/delete-abel', isAuth, adminController.deleteFinalAssessment);
 
 module.exports = router;

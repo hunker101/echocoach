@@ -1,9 +1,45 @@
 const db = {
     users: [
-        { id: 1, name: 'John Doe', email: 'john@example.com', role: 'Student', level: 'Intermediate', stats: { speaking: 78, listening: 85, reading: 65, writing: 70 } },
-        { id: 2, name: 'Jane Smith', email: 'jane@admin.com', role: 'Admin', level: 'Advanced', stats: { speaking: 95, listening: 98, reading: 92, writing: 96 } },
-        { id: 3, name: 'Robert Brown', email: 'bob@school.edu', role: 'Teacher', level: 'Pre-Intermediate', stats: { speaking: 88, listening: 90, reading: 85, writing: 92 } },
-        { id: 4, name: 'Alice Wonderland', email: 'alice@wonder.com', role: 'Student', level: 'Beginner', stats: { speaking: 45, listening: 50, reading: 60, writing: 40 } }
+        { 
+            id: 1, 
+            name: 'John Doe', 
+            email: 'john@example.com', 
+            level: 'Intermediate', 
+            preAssessmentResult: 100,
+            photoURL: 'https://i.pravatar.cc/150?img=12',
+            createdAt: new Date('2024-01-15T10:30:00Z').toISOString(),
+            stats: { speaking: 78, listening: 85, reading: 65, writing: 70 } 
+        },
+        { 
+            id: 2, 
+            name: 'Jane Smith', 
+            email: 'jane@admin.com', 
+            level: 'Advanced', 
+            preAssessmentResult: 100,
+            photoURL: 'https://i.pravatar.cc/150?img=47',
+            createdAt: new Date('2023-11-20T14:15:00Z').toISOString(),
+            stats: { speaking: 95, listening: 98, reading: 92, writing: 96 } 
+        },
+        { 
+            id: 3, 
+            name: 'Robert Brown', 
+            email: 'bob@school.edu', 
+            level: 'Pre-Intermediate', 
+            preAssessmentResult: 100,
+            photoURL: 'https://i.pravatar.cc/150?img=33',
+            createdAt: new Date('2024-02-08T09:45:00Z').toISOString(),
+            stats: { speaking: 88, listening: 90, reading: 85, writing: 92 } 
+        },
+        { 
+            id: 4, 
+            name: 'Alice Wonderland', 
+            email: 'alice@wonder.com', 
+            level: 'Beginner', 
+            preAssessmentResult: 100,
+            photoURL: 'https://i.pravatar.cc/150?img=68',
+            createdAt: new Date('2024-03-22T16:20:00Z').toISOString(),
+            stats: { speaking: 45, listening: 50, reading: 60, writing: 40 } 
+        }
     ],
     
     pendingModules: [

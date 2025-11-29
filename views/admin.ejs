@@ -42,6 +42,9 @@
     selectedModuleData: null,
     activeSkill: null,
     currentModuleIndex: 0,
+    currentWritingTaskIndex: 0,
+    currentSpeakingPart: 1,
+    currentSpeakingQuestion: 1,
     previewImage: null, 
     moduleQuestions: [ // Dummy data for Module Test Bank
         { id: 1, description: 'Describe the image below.', image: 'https://placehold.co/300x200?text=Sample+Image' },
@@ -94,6 +97,40 @@
         this.showModal = false;
         this.previewImage = null;
         this.editItem = {};
+    },
+    getSpeakingQuestion(part, question) {
+        const mockQuestions = {
+            1: {
+                1: 'Tell me about your hometown.',
+                2: 'What do you like most about your job or studies?'
+            },
+            2: {
+                1: 'Describe a place you would like to visit. You should say: where it is, what you would do there, and why you want to visit it.',
+                2: 'Talk about a memorable event in your life. You should say: when it happened, what you did, and why it was memorable.'
+            },
+            3: {
+                1: 'Do you think tourism has a positive or negative impact on local communities?',
+                2: 'How do you think technology has changed the way people travel?'
+            }
+        };
+        return mockQuestions[part]?.[question] || 'No question available.';
+    },
+    getCurrentSpeakingQuestion() {
+        if (!this.selectedModuleData?.content?.speaking) {
+            return this.getSpeakingQuestion(this.currentSpeakingPart, this.currentSpeakingQuestion);
+        }
+        const partKey = 'part' + this.currentSpeakingPart;
+        const questionKey = 'question' + this.currentSpeakingQuestion;
+        const question = this.selectedModuleData?.content?.speaking?.parts?.[partKey]?.[questionKey];
+        return question || this.getSpeakingQuestion(this.currentSpeakingPart, this.currentSpeakingQuestion);
+    },
+    getSpeakingPartTitle() {
+        const titles = {
+            1: 'Part 1: Introduction and Interview',
+            2: 'Part 2: Long Turn',
+            3: 'Part 3: Discussion'
+        };
+        return titles[this.currentSpeakingPart] || 'Part 1: Introduction and Interview';
     }
 }">
 
@@ -161,8 +198,9 @@
                         <thead class="bg-gray-50">
                             <tr>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Level</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pre-assessment Result</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created at</th>
                                 <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                             </tr>
                         </thead>
@@ -170,16 +208,57 @@
                             <% users.forEach(function(user) { %>
                             <tr 
                                 data-user='<%- JSON.stringify(user) %>'
-                                @click="showModal = 'viewStats'; viewUser = JSON.parse($el.dataset.user)"
-                                class="hover:bg-gray-50 transition cursor-pointer group"
+                                class="hover:bg-gray-50 transition group"
                             >
                                 <td class="px-6 py-4">
-                                    <div class="text-sm font-medium text-gray-900 group-hover:text-blue-600 transition"><%= user.name %></div>
-                                    <div class="text-sm text-gray-500"><%= user.email %></div>
+                                    <div class="flex items-center gap-3">
+                                        <% if (user.photoURL) { %>
+                                            <img 
+                                                src="<%= user.photoURL %>" 
+                                                alt="<%= user.name %>" 
+                                                class="w-10 h-10 rounded-full object-cover cursor-pointer hover:ring-2 hover:ring-blue-500 transition"
+                                                onclick="window.open('<%= user.photoURL %>', '_blank')"
+                                            >
+                                        <% } else { %>
+                                            <div class="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 font-semibold">
+                                                <%= user.name ? user.name.charAt(0).toUpperCase() : 'U' %>
+                                            </div>
+                                        <% } %>
+                                        <div>
+                                            <div class="text-sm font-medium text-gray-900"><%= user.name %></div>
+                                            <div class="text-sm text-gray-500"><%= user.email %></div>
+                                        </div>
+                                    </div>
                                 </td>
-                                <td class="px-6 py-4 text-sm text-gray-500"><%= user.role %></td>
                                 <td class="px-6 py-4 whitespace-nowrap">
-                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full" :class="getLevelClass('<%= user.level %>')"><%= user.level || 'Not Set' %></span>
+                                    <span 
+                                        data-user='<%- JSON.stringify(user) %>'
+                                        @click="showModal = 'viewStats'; viewUser = JSON.parse($el.dataset.user)"
+                                        class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full cursor-pointer hover:opacity-80 transition" 
+                                        :class="getLevelClass('<%= user.level %>')"
+                                    ><%= user.level || 'Not Set' %></span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div 
+                                        data-user='<%- JSON.stringify(user) %>'
+                                        @click="showModal = 'viewStats'; viewUser = JSON.parse($el.dataset.user)"
+                                        class="inline-flex items-center gap-1 px-3 py-1.5 bg-yellow-100 rounded-full cursor-pointer hover:bg-yellow-200 transition"
+                                    >
+                                        <span class="text-sm font-semibold text-gray-800"><%= user.preAssessmentResult || '100' %>%</span>
+                                        <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                        </svg>
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="text-sm text-gray-500">
+                                        <% if (user.createdAt) { %>
+                                            <%= new Date(user.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) %>
+                                        <% } else { %>
+                                            <span class="text-gray-400">Not available</span>
+                                        <% } %>
+                                    </div>
+                                    <div class="text-xs text-gray-400">Account Creation</div>
                                 </td>
                                 <td class="px-6 py-4 text-right text-sm font-medium">
                                     <div class="flex justify-end space-x-3">
@@ -269,21 +348,6 @@
                             </h2>
                         </div>
                         <div class="flex gap-3">
-                            <template x-if="selectedUser?.status !== 'Validated'">
-                                <form action="/admin/validate-module" method="POST" class="inline">
-                                    <input type="hidden" name="id" :value="selectedUser?.id">
-                                    <button type="submit" class="bg-green-500 text-white px-5 py-2.5 rounded-lg shadow hover:bg-green-600 transition text-sm font-semibold flex items-center gap-2">
-                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                                        Validate
-                                    </button>
-                                </form>
-                            </template>
-                            <template x-if="selectedUser?.status === 'Validated'">
-                                <button disabled class="bg-gray-100 text-gray-400 px-5 py-2.5 rounded-lg border border-gray-200 cursor-not-allowed text-sm font-semibold flex items-center gap-2">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                                    Validated
-                                </button>
-                            </template>
                             <button @click="showModal = 'moduleStats'" class="bg-blue-600 text-white px-5 py-2.5 rounded-lg shadow hover:bg-blue-700 transition text-sm font-semibold flex items-center gap-2">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
                                 View Stats
@@ -296,19 +360,19 @@
                             <h3 class="font-bold text-gray-900 text-2xl" x-text="selectedUser?.modules[currentModuleIndex]?.title"></h3>
                         </div>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div @click="moduleView = 'content'; selectedModuleData = selectedUser?.modules[currentModuleIndex]; activeSkill = 'writing'" class="flex items-center gap-4 cursor-pointer group hover:bg-blue-50 p-4 rounded-xl transition border border-gray-100 hover:border-blue-200 bg-gray-50">
+                            <div @click="moduleView = 'content'; selectedModuleData = selectedUser?.modules[currentModuleIndex]; activeSkill = 'writing'; currentWritingTaskIndex = 0" class="flex items-center gap-4 cursor-pointer group hover:bg-blue-50 p-4 rounded-xl transition border border-gray-100 hover:border-blue-200 bg-gray-50">
                                 <div class="bg-blue-100 p-3 rounded-full text-blue-600"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg></div>
                                 <div><h4 class="font-bold text-gray-800 text-lg group-hover:text-blue-700 mb-1">Writing</h4><p class="text-sm text-gray-500">Develop coherent and well-structured responses</p></div>
                             </div>
-                            <div @click="moduleView = 'content'; selectedModuleData = selectedUser?.modules[currentModuleIndex]; activeSkill = 'reading'" class="flex items-center gap-4 cursor-pointer group hover:bg-blue-50 p-4 rounded-xl transition border border-gray-100 hover:border-blue-200 bg-gray-50">
+                            <div @click="moduleView = 'content'; selectedModuleData = selectedUser?.modules[currentModuleIndex]; activeSkill = 'reading'; currentWritingTaskIndex = 0" class="flex items-center gap-4 cursor-pointer group hover:bg-blue-50 p-4 rounded-xl transition border border-gray-100 hover:border-blue-200 bg-gray-50">
                                 <div class="bg-green-100 p-3 rounded-full text-green-600"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg></div>
                                 <div><h4 class="font-bold text-gray-800 text-lg group-hover:text-blue-700">Reading</h4><p class="text-sm text-gray-500">Boost your comprehension and skimming skills</p></div>
                             </div>
-                            <div @click="moduleView = 'content'; selectedModuleData = selectedUser?.modules[currentModuleIndex]; activeSkill = 'listening'" class="flex items-center gap-4 cursor-pointer group hover:bg-blue-50 p-4 rounded-xl transition border border-gray-100 hover:border-blue-200 bg-gray-50">
+                            <div @click="moduleView = 'content'; selectedModuleData = selectedUser?.modules[currentModuleIndex]; activeSkill = 'listening'; currentWritingTaskIndex = 0" class="flex items-center gap-4 cursor-pointer group hover:bg-blue-50 p-4 rounded-xl transition border border-gray-100 hover:border-blue-200 bg-gray-50">
                                 <div class="bg-purple-100 p-3 rounded-full text-purple-600"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"></path></svg></div>
                                 <div><h4 class="font-bold text-gray-800 text-lg group-hover:text-blue-700">Listening</h4><p class="text-sm text-gray-500">Enhance your focus and audio understanding</p></div>
                             </div>
-                            <div @click="moduleView = 'content'; selectedModuleData = selectedUser?.modules[currentModuleIndex]; activeSkill = 'speaking'" class="flex items-center gap-4 cursor-pointer group hover:bg-blue-50 p-4 rounded-xl transition border border-gray-100 hover:border-blue-200 bg-gray-50">
+                            <div @click="moduleView = 'content'; selectedModuleData = selectedUser?.modules[currentModuleIndex]; activeSkill = 'speaking'; currentWritingTaskIndex = 0; currentSpeakingPart = 1; currentSpeakingQuestion = 1" class="flex items-center gap-4 cursor-pointer group hover:bg-blue-50 p-4 rounded-xl transition border border-gray-100 hover:border-blue-200 bg-gray-50">
                                 <div class="bg-yellow-100 p-3 rounded-full text-yellow-600"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg></div>
                                 <div><h4 class="font-bold text-gray-800 text-lg group-hover:text-blue-700">Speaking</h4><p class="text-sm text-gray-500">Build fluency, improve pronunciation, and speak with clarity</p></div>
                             </div>
@@ -330,38 +394,228 @@
                             </button>
                             <div><h2 class="text-2xl font-bold text-gray-900 capitalize" x-text="activeSkill"></h2><p class="text-sm text-gray-500" x-text="selectedModuleData?.title"></p></div>
                         </div>
-                        <div class="flex gap-2"><form action="/admin/regenerate-module" method="POST" class="inline"><button type="submit" class="bg-purple-600 text-white px-5 py-2.5 rounded-lg shadow hover:bg-purple-700 transition text-sm font-semibold flex items-center gap-2"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>Regenerate Content</button></form></div>
+                        <div class="flex gap-2">
+                            <template x-if="selectedUser?.status !== 'Validated'">
+                                <form action="/admin/validate-module" method="POST" class="inline">
+                                    <input type="hidden" name="id" :value="selectedUser?.id">
+                                    <button type="submit" class="bg-green-500 text-white px-5 py-2.5 rounded-lg shadow hover:bg-green-600 transition text-sm font-semibold flex items-center gap-2">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                                        Validate
+                                    </button>
+                                </form>
+                            </template>
+                            <template x-if="selectedUser?.status === 'Validated'">
+                                <button disabled class="bg-gray-100 text-gray-400 px-5 py-2.5 rounded-lg border border-gray-200 cursor-not-allowed text-sm font-semibold flex items-center gap-2">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                                    Validated
+                                </button>
+                            </template>
+                            <form action="/admin/regenerate-module" method="POST" class="inline"><button type="submit" class="bg-purple-600 text-white px-5 py-2.5 rounded-lg shadow hover:bg-purple-700 transition text-sm font-semibold flex items-center gap-2"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>Regenerate Content</button></form>
+                        </div>
                     </div>
                     <!-- Clean Card Content Area -->
                     <div class="flex-1 p-8 flex justify-center bg-gray-50 overflow-y-auto">
                         <!-- Left: Editor Placeholder -->
-                        <div class="flex-1 bg-white border rounded-xl p-8 shadow-sm flex flex-col items-center justify-center border-dashed border-gray-300 mr-8 max-w-xl">
-                             <p class="text-gray-400 text-lg font-medium mb-2">Content Editor</p>
-                             <p class="text-sm text-gray-500">Admin can edit the generated content here.</p>
+                        <div class="flex-1 bg-white border rounded-xl p-8 shadow-sm flex flex-col border-dashed border-gray-300 mr-8 max-w-xl">
+                             <template x-if="activeSkill === 'listening'">
+                                 <div class="space-y-6">
+                                     <div>
+                                         <label class="block text-sm font-medium text-gray-700 mb-2">Speaker Accent</label>
+                                         <div class="px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg">
+                                             <p class="text-sm text-gray-800 font-medium" x-text="selectedModuleData?.content?.listening?.speakerAccent || 'British English'"></p>
+                                         </div>
+                                     </div>
+                                     <div>
+                                         <label class="block text-sm font-medium text-gray-700 mb-2">Speaker 1</label>
+                                         <div class="px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg">
+                                             <p class="text-sm text-gray-600 leading-relaxed" x-text="selectedModuleData?.content?.listening?.speaker1 || 'Hello, I would like to book a table for two at 7 PM tonight.'"></p>
+                                         </div>
+                                     </div>
+                                     <div>
+                                         <label class="block text-sm font-medium text-gray-700 mb-2">Speaker 2</label>
+                                         <div class="px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg">
+                                             <p class="text-sm text-gray-600 leading-relaxed" x-text="selectedModuleData?.content?.listening?.speaker2 || 'Of course! Let me check our availability. Yes, we have a table available at that time.'"></p>
+                                         </div>
+                                     </div>
+                                 </div>
+                             </template>
+                             <template x-if="activeSkill !== 'listening'">
+                                 <div class="flex flex-col items-center justify-center w-full h-full">
+                                     <p class="text-gray-400 text-lg font-medium mb-2">Content Editor</p>
+                                     <p class="text-sm text-gray-500">Admin can edit the generated content here.</p>
+                                 </div>
+                             </template>
                         </div>
 
                         <!-- Right: Clean Preview Card (No Phone Style) -->
                         <div class="w-full max-w-md bg-white rounded-xl shadow-md border border-gray-200 flex flex-col h-fit overflow-hidden">
                             <div class="p-8">
-                                <h4 class="text-2xl font-bold text-gray-900 mb-6 capitalize" x-text="activeSkill"></h4>
+                                <h4 class="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+                                    <span class="capitalize" x-text="activeSkill"></span>
+                                    <template x-if="activeSkill === 'writing'">
+                                        <span class="text-gray-500 font-normal" x-text="'Task ' + (currentWritingTaskIndex + 1)"></span>
+                                    </template>
+                                </h4>
                                 
-                                <!-- Question -->
-                                <div class="mb-6">
-                                    <p class="text-lg text-gray-800 font-medium leading-relaxed" x-text="selectedModuleData?.content?.[activeSkill]?.question || 'No question available.'"></p>
-                                </div>
+                                <!-- Writing Layout: Image + Description -->
+                                <template x-if="activeSkill === 'writing'">
+                                    <div>
+                                        <div class="mb-6">
+                                            <div class="w-full rounded-lg overflow-hidden bg-gray-100">
+                                                <template x-if="selectedModuleData?.content?.writing?.tasks?.[currentWritingTaskIndex]?.image || selectedModuleData?.content?.writing?.image">
+                                                    <img :src="selectedModuleData?.content?.writing?.tasks?.[currentWritingTaskIndex]?.image || selectedModuleData?.content?.writing?.image" alt="Writing prompt image" class="w-full h-auto object-cover">
+                                                </template>
+                                                <template x-if="!selectedModuleData?.content?.writing?.tasks?.[currentWritingTaskIndex]?.image && !selectedModuleData?.content?.writing?.image">
+                                                    <div class="w-full h-64 flex items-center justify-center">
+                                                        <p class="text-gray-400 text-sm">No image available</p>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <p class="text-sm text-gray-600 leading-relaxed" x-text="selectedModuleData?.content?.writing?.tasks?.[currentWritingTaskIndex]?.description || selectedModuleData?.content?.writing?.description || 'No description available.'"></p>
+                                        </div>
+                                    </div>
+                                </template>
 
-                                <!-- Inputs -->
-                                <div class="space-y-4">
-                                    <input type="text" class="w-full border border-gray-200 rounded-lg p-3 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-100" disabled placeholder="Answer 1">
-                                    <input type="text" class="w-full border border-blue-200 rounded-lg p-3 bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-100" disabled placeholder="Answer 2">
-                                    <input type="text" class="w-full border border-gray-200 rounded-lg p-3 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-100" disabled placeholder="Answer 3">
-                                </div>
+                                <!-- Listening Layout: Multiple Choice (4 options) -->
+                                <template x-if="activeSkill === 'listening'">
+                                    <div>
+                                        <!-- Question -->
+                                        <div class="mb-6">
+                                            <p class="text-lg text-gray-800 font-medium leading-relaxed" x-text="selectedModuleData?.content?.listening?.question || 'What is the main topic of the conversation?'"></p>
+                                        </div>
+
+                                        <!-- Multiple Choice Options (4 choices) -->
+                                        <div class="space-y-3">
+                                            <div class="p-3 border rounded-lg transition" 
+                                                 :class="(selectedModuleData?.content?.listening?.correctAnswer || 1) === 1 ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-gray-50'">
+                                                <p class="text-sm text-gray-700" x-text="selectedModuleData?.content?.listening?.options?.[0] || 'A. Booking a restaurant table'"></p>
+                                            </div>
+                                            <div class="p-3 border rounded-lg transition" 
+                                                 :class="(selectedModuleData?.content?.listening?.correctAnswer || 1) === 2 ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-gray-50'">
+                                                <p class="text-sm text-gray-700" x-text="selectedModuleData?.content?.listening?.options?.[1] || 'B. Making a hotel reservation'"></p>
+                                            </div>
+                                            <div class="p-3 border rounded-lg transition" 
+                                                 :class="(selectedModuleData?.content?.listening?.correctAnswer || 1) === 3 ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-gray-50'">
+                                                <p class="text-sm text-gray-700" x-text="selectedModuleData?.content?.listening?.options?.[2] || 'C. Ordering food delivery'"></p>
+                                            </div>
+                                            <div class="p-3 border rounded-lg transition" 
+                                                 :class="(selectedModuleData?.content?.listening?.correctAnswer || 1) === 4 ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-gray-50'">
+                                                <p class="text-sm text-gray-700" x-text="selectedModuleData?.content?.listening?.options?.[3] || 'D. Canceling a reservation'"></p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </template>
+
+                                <!-- Reading Layout: Multiple Choice (4 options) -->
+                                <template x-if="activeSkill === 'reading'">
+                                    <div>
+                                        <!-- Question -->
+                                        <div class="mb-6">
+                                            <p class="text-lg text-gray-800 font-medium leading-relaxed" x-text="selectedModuleData?.content?.reading?.question || 'What is the main idea of the passage?'"></p>
+                                        </div>
+
+                                        <!-- Multiple Choice Options (4 choices) -->
+                                        <div class="space-y-3">
+                                            <div class="p-3 border rounded-lg transition" 
+                                                 :class="(selectedModuleData?.content?.reading?.correctAnswer || 1) === 1 ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-gray-50'">
+                                                <p class="text-sm text-gray-700" x-text="selectedModuleData?.content?.reading?.options?.[0] || 'A. The importance of reading comprehension'"></p>
+                                            </div>
+                                            <div class="p-3 border rounded-lg transition" 
+                                                 :class="(selectedModuleData?.content?.reading?.correctAnswer || 1) === 2 ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-gray-50'">
+                                                <p class="text-sm text-gray-700" x-text="selectedModuleData?.content?.reading?.options?.[1] || 'B. Strategies for improving vocabulary'"></p>
+                                            </div>
+                                            <div class="p-3 border rounded-lg transition" 
+                                                 :class="(selectedModuleData?.content?.reading?.correctAnswer || 1) === 3 ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-gray-50'">
+                                                <p class="text-sm text-gray-700" x-text="selectedModuleData?.content?.reading?.options?.[2] || 'C. The history of literature'"></p>
+                                            </div>
+                                            <div class="p-3 border rounded-lg transition" 
+                                                 :class="(selectedModuleData?.content?.reading?.correctAnswer || 1) === 4 ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-gray-50'">
+                                                <p class="text-sm text-gray-700" x-text="selectedModuleData?.content?.reading?.options?.[3] || 'D. Techniques for speed reading'"></p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </template>
+
+                                <!-- Speaking: 3 Parts with Navigation -->
+                                <template x-if="activeSkill === 'speaking'">
+                                    <div>
+                                        <!-- Part Title -->
+                                        <div class="mb-6">
+                                            <h5 class="text-xl font-bold text-gray-900 mb-2" x-text="getSpeakingPartTitle()"></h5>
+                                        </div>
+
+                                        <!-- Question Navigation -->
+                                        <div class="mb-6 flex gap-2">
+                                            <button 
+                                                @click="currentSpeakingQuestion = 1"
+                                                :class="currentSpeakingQuestion === 1 ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
+                                                class="flex-1 px-4 py-2 rounded-lg transition font-medium text-sm"
+                                            >
+                                                Question 1
+                                            </button>
+                                            <button 
+                                                @click="currentSpeakingQuestion = 2"
+                                                :class="currentSpeakingQuestion === 2 ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
+                                                class="flex-1 px-4 py-2 rounded-lg transition font-medium text-sm"
+                                            >
+                                                Question 2
+                                            </button>
+                                        </div>
+
+                                        <!-- Question Display -->
+                                        <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                                            <p class="text-lg text-gray-800 font-medium leading-relaxed" x-text="getCurrentSpeakingQuestion()"></p>
+                                        </div>
+                                    </div>
+                                </template>
                             </div>
                             
                             <!-- Card Footer / Nav -->
                             <div class="bg-gray-50 px-8 py-4 border-t border-gray-100 flex justify-between items-center">
-                                <button class="w-10 h-10 rounded-full border border-gray-300 flex items-center justify-center text-gray-400 bg-white shadow-sm hover:bg-gray-50"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg></button>
-                                <button class="w-10 h-10 rounded-full bg-black text-white flex items-center justify-center shadow-lg hover:bg-gray-800"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg></button>
+                                <template x-if="activeSkill === 'writing'">
+                                    <button 
+                                        @click="if(currentWritingTaskIndex > 0) currentWritingTaskIndex--" 
+                                        :disabled="currentWritingTaskIndex === 0"
+                                        class="w-10 h-10 rounded-full border border-gray-300 flex items-center justify-center text-gray-400 bg-white shadow-sm hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                                    >
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+                                    </button>
+                                </template>
+                                <template x-if="activeSkill === 'speaking'">
+                                    <button 
+                                        @click="if(currentSpeakingPart > 1) { currentSpeakingPart--; currentSpeakingQuestion = 1; }" 
+                                        :disabled="currentSpeakingPart === 1"
+                                        class="w-10 h-10 rounded-full border border-gray-300 flex items-center justify-center text-gray-400 bg-white shadow-sm hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                                    >
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+                                    </button>
+                                </template>
+                                <template x-if="activeSkill !== 'writing' && activeSkill !== 'speaking'">
+                                    <button class="w-10 h-10 rounded-full border border-gray-300 flex items-center justify-center text-gray-400 bg-white shadow-sm hover:bg-gray-50"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg></button>
+                                </template>
+                                <template x-if="activeSkill === 'writing'">
+                                    <button 
+                                        @click="if(selectedModuleData?.content?.writing?.tasks && currentWritingTaskIndex < selectedModuleData.content.writing.tasks.length - 1) currentWritingTaskIndex++" 
+                                        :disabled="!selectedModuleData?.content?.writing?.tasks || currentWritingTaskIndex >= selectedModuleData.content.writing.tasks.length - 1"
+                                        class="w-10 h-10 rounded-full bg-black text-white flex items-center justify-center shadow-lg hover:bg-gray-800 disabled:bg-gray-300 disabled:cursor-not-allowed transition"
+                                    >
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+                                    </button>
+                                </template>
+                                <template x-if="activeSkill === 'speaking'">
+                                    <button 
+                                        @click="if(currentSpeakingPart < 3) { currentSpeakingPart++; currentSpeakingQuestion = 1; }" 
+                                        :disabled="currentSpeakingPart === 3"
+                                        class="w-10 h-10 rounded-full bg-black text-white flex items-center justify-center shadow-lg hover:bg-gray-800 disabled:bg-gray-300 disabled:cursor-not-allowed transition"
+                                    >
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+                                    </button>
+                                </template>
+                                <template x-if="activeSkill !== 'writing' && activeSkill !== 'speaking'">
+                                    <button class="w-10 h-10 rounded-full bg-black text-white flex items-center justify-center shadow-lg hover:bg-gray-800"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg></button>
+                                </template>
                             </div>
                         </div>
                     </div>
@@ -493,23 +747,14 @@
                     <label class="text-xs text-gray-500">Email</label>
                     <input type="email" name="email" x-model="editItem.email" required class="w-full border p-2 rounded">
                 </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="text-xs text-gray-500">Role</label>
-                        <select name="role" x-model="editItem.role" class="w-full border p-2 rounded">
-                            <option value="Student">Student</option>
-                            <option value="Admin">Admin</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="text-xs text-gray-500">Level</label>
-                        <select name="level" x-model="editItem.level" disabled class="w-full border p-2 rounded bg-gray-50 text-gray-500 cursor-not-allowed">
-                            <option value="Beginner">Beginner</option>
-                            <option value="Pre-Intermediate">Pre-Intermediate</option>
-                            <option value="Intermediate">Intermediate</option>
-                            <option value="Advanced">Advanced</option>
-                        </select>
-                    </div>
+                <div>
+                    <label class="text-xs text-gray-500">Level</label>
+                    <select name="level" x-model="editItem.level" disabled class="w-full border p-2 rounded bg-gray-50 text-gray-500 cursor-not-allowed">
+                        <option value="Beginner">Beginner</option>
+                        <option value="Pre-Intermediate">Pre-Intermediate</option>
+                        <option value="Intermediate">Intermediate</option>
+                        <option value="Advanced">Advanced</option>
+                    </select>
                 </div>
                 <div class="flex justify-end gap-2 mt-4">
                     <button type="button" @click="showModal = false" class="px-4 py-2 border rounded">Cancel</button>

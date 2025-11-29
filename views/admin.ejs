@@ -45,11 +45,14 @@
     currentWritingTaskIndex: 0,
     currentSpeakingPart: 1,
     currentSpeakingQuestion: 1,
+    currentReadingQuestionIndex: 0,
+    currentListeningQuestionIndex: 0,
     previewImage: null,
     usersList: [],
     createdAtSortOrder: null,
     modulesList: [],
     statusSortOrder: null,
+    assessmentCenterOpen: true,
     moduleQuestions: [ // Dummy data for Module Test Bank
         { id: 1, description: 'Describe the image below.', image: 'https://placehold.co/300x200?text=Sample+Image' },
         { id: 2, description: 'What is happening in this scene?', image: null }
@@ -135,6 +138,132 @@
             3: 'Part 3: Discussion'
         };
         return titles[this.currentSpeakingPart] || 'Part 1: Introduction and Interview';
+    },
+    initializeMockData(skill) {
+        if (!this.selectedModuleData) return;
+        
+        if (!this.selectedModuleData.content) {
+            this.selectedModuleData.content = {};
+        }
+        
+        // Initialize Writing mock data with multiple tasks
+        if (skill === 'writing' && !this.selectedModuleData.content.writing?.tasks) {
+            this.selectedModuleData.content.writing = {
+                tasks: [
+                    {
+                        image: 'https://placehold.co/600x400?text=Writing+Task+1',
+                        description: 'The chart below shows the percentage of households in owned and rented accommodation in England and Wales between 1918 and 2011. Summarize the information by selecting and reporting the main features, and make comparisons where relevant.'
+                    },
+                    {
+                        image: 'https://placehold.co/600x400?text=Writing+Task+2',
+                        description: 'Some people think that it is better to educate boys and girls in separate schools. Others, however, believe that boys and girls benefit more from attending mixed schools. Discuss both views and give your own opinion.'
+                    },
+                    {
+                        image: 'https://placehold.co/600x400?text=Writing+Task+3',
+                        description: 'You should spend about 20 minutes on this task. The graph below shows the proportion of the population aged 65 and over between 1940 and 2040 in three different countries. Summarize the information by selecting and reporting the main features, and make comparisons where relevant.'
+                    }
+                ]
+            };
+        }
+        
+        // Initialize Reading mock data with multiple questions
+        if (skill === 'reading' && !this.selectedModuleData.content.reading?.questions) {
+            this.selectedModuleData.content.reading = {
+                questions: [
+                    {
+                        question: 'What is the main idea of the passage?',
+                        options: [
+                            'A. The importance of reading comprehension',
+                            'B. Strategies for improving vocabulary',
+                            'C. The history of literature',
+                            'D. Techniques for speed reading'
+                        ],
+                        correctAnswer: 1
+                    },
+                    {
+                        question: 'According to the passage, what is the primary benefit of regular reading?',
+                        options: [
+                            'A. Improved memory retention',
+                            'B. Enhanced critical thinking skills',
+                            'C. Better time management',
+                            'D. Increased social connections'
+                        ],
+                        correctAnswer: 2
+                    },
+                    {
+                        question: 'What does the author suggest about reading habits?',
+                        options: [
+                            'A. Reading should be done only in the morning',
+                            'B. Consistency is more important than quantity',
+                            'C. Digital books are less effective than print',
+                            'D. Reading fiction is more beneficial than non-fiction'
+                        ],
+                        correctAnswer: 2
+                    }
+                ]
+            };
+        }
+        
+        // Initialize Listening mock data with multiple questions
+        if (skill === 'listening' && !this.selectedModuleData.content.listening?.questions) {
+            this.selectedModuleData.content.listening = {
+                speakerAccent: 'British English',
+                speaker1: 'Hello, I would like to book a table for two at 7 PM tonight.',
+                speaker2: 'Of course! Let me check our availability. Yes, we have a table available at that time.',
+                questions: [
+                    {
+                        question: 'What is the main topic of the conversation?',
+                        options: [
+                            'A. Booking a restaurant table',
+                            'B. Making a hotel reservation',
+                            'C. Ordering food delivery',
+                            'D. Canceling a reservation'
+                        ],
+                        correctAnswer: 1
+                    },
+                    {
+                        question: 'What time does the customer want to book?',
+                        options: [
+                            'A. 6 PM',
+                            'B. 7 PM',
+                            'C. 8 PM',
+                            'D. 9 PM'
+                        ],
+                        correctAnswer: 2
+                    },
+                    {
+                        question: 'How many people will be dining?',
+                        options: [
+                            'A. One',
+                            'B. Two',
+                            'C. Three',
+                            'D. Four'
+                        ],
+                        correctAnswer: 2
+                    }
+                ]
+            };
+        }
+        
+        // Initialize Speaking mock data structure
+        if (skill === 'speaking' && !this.selectedModuleData.content.speaking?.parts) {
+            this.selectedModuleData.content.speaking = {
+                parts: {
+                    part1: {
+                        question1: 'Tell me about your hometown.',
+                        question2: 'What do you like most about your job or studies?'
+                    },
+                    part2: {
+                        question1: 'Describe a place you would like to visit. You should say: where it is, what you would do there, and why you want to visit it.',
+                        question2: 'Talk about a memorable event in your life. You should say: when it happened, what you did, and why it was memorable.'
+                    },
+                    part3: {
+                        question1: 'Do you think tourism has a positive or negative impact on local communities?',
+                        question2: 'How do you think technology has changed the way people travel?'
+                    }
+                }
+            };
+        }
     },
     initUsers() {
         const usersDataElement = document.getElementById('users-data');
@@ -245,19 +374,28 @@
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
                     <span>Modules</span>
                 </button>
-                <div class="pt-4 pb-2 px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Assessment Center</div>
-                <button @click="currentTab = 'testbank'" :class="currentTab === 'testbank' ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50'" class="w-full flex items-center space-x-3 px-4 py-3 rounded-lg font-medium transition">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
-                    <span>General Test Bank</span>
-                </button>
-                <button @click="currentTab = 'moduletestbank'" :class="currentTab === 'moduletestbank' ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50'" class="w-full flex items-center space-x-3 px-4 py-3 rounded-lg font-medium transition">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"></path></svg>
-                    <span>Module Quiz Bank</span>
-                </button>
-                <button @click="currentTab = 'abel'" :class="currentTab === 'abel' ? 'bg-purple-50 text-purple-700' : 'text-gray-600 hover:bg-gray-50'" class="w-full flex items-center space-x-3 px-4 py-3 rounded-lg font-medium transition">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                    <span>ABEL Assessment</span>
-                </button>
+                <div class="pt-4 pb-2 px-4">
+                    <button @click="assessmentCenterOpen = !assessmentCenterOpen" class="w-full flex items-center justify-between text-xs font-semibold text-gray-400 uppercase tracking-wider hover:text-gray-600 transition">
+                        <span>Assessment Center</span>
+                        <svg class="w-4 h-4 transition-transform" :class="assessmentCenterOpen ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                        </svg>
+                    </button>
+                </div>
+                <div x-show="assessmentCenterOpen" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 transform -translate-y-2" x-transition:enter-end="opacity-100 transform translate-y-0" x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100 transform translate-y-0" x-transition:leave-end="opacity-0 transform -translate-y-2">
+                    <button @click="currentTab = 'testbank'" :class="currentTab === 'testbank' ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50'" class="w-full flex items-center space-x-3 px-4 py-3 rounded-lg font-medium transition">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
+                        <span>General Test Bank</span>
+                    </button>
+                    <button @click="currentTab = 'moduletestbank'" :class="currentTab === 'moduletestbank' ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50'" class="w-full flex items-center space-x-3 px-4 py-3 rounded-lg font-medium transition">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"></path></svg>
+                        <span>Module Quiz Bank</span>
+                    </button>
+                    <button @click="currentTab = 'abel'" :class="currentTab === 'abel' ? 'bg-purple-50 text-purple-700' : 'text-gray-600 hover:bg-gray-50'" class="w-full flex items-center space-x-3 px-4 py-3 rounded-lg font-medium transition">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        <span>ABEL Assessment</span>
+                    </button>
+                </div>
             </div>
         </aside>
 
@@ -477,19 +615,19 @@
                             <h3 class="font-bold text-gray-900 text-2xl" x-text="selectedUser?.modules[currentModuleIndex]?.title"></h3>
                         </div>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div @click="moduleView = 'content'; selectedModuleData = selectedUser?.modules[currentModuleIndex]; activeSkill = 'writing'; currentWritingTaskIndex = 0" class="flex items-center gap-4 cursor-pointer group hover:bg-blue-50 p-4 rounded-xl transition border border-gray-100 hover:border-blue-200 bg-gray-50">
+                            <div @click="moduleView = 'content'; selectedModuleData = selectedUser?.modules[currentModuleIndex]; activeSkill = 'writing'; currentWritingTaskIndex = 0; initializeMockData('writing')" class="flex items-center gap-4 cursor-pointer group hover:bg-blue-50 p-4 rounded-xl transition border border-gray-100 hover:border-blue-200 bg-gray-50">
                                 <div class="bg-blue-100 p-3 rounded-full text-blue-600"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg></div>
                                 <div><h4 class="font-bold text-gray-800 text-lg group-hover:text-blue-700 mb-1">Writing</h4><p class="text-sm text-gray-500">Develop coherent and well-structured responses</p></div>
                             </div>
-                            <div @click="moduleView = 'content'; selectedModuleData = selectedUser?.modules[currentModuleIndex]; activeSkill = 'reading'; currentWritingTaskIndex = 0" class="flex items-center gap-4 cursor-pointer group hover:bg-blue-50 p-4 rounded-xl transition border border-gray-100 hover:border-blue-200 bg-gray-50">
+                            <div @click="moduleView = 'content'; selectedModuleData = selectedUser?.modules[currentModuleIndex]; activeSkill = 'reading'; currentReadingQuestionIndex = 0; initializeMockData('reading')" class="flex items-center gap-4 cursor-pointer group hover:bg-blue-50 p-4 rounded-xl transition border border-gray-100 hover:border-blue-200 bg-gray-50">
                                 <div class="bg-green-100 p-3 rounded-full text-green-600"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg></div>
                                 <div><h4 class="font-bold text-gray-800 text-lg group-hover:text-blue-700">Reading</h4><p class="text-sm text-gray-500">Boost your comprehension and skimming skills</p></div>
                             </div>
-                            <div @click="moduleView = 'content'; selectedModuleData = selectedUser?.modules[currentModuleIndex]; activeSkill = 'listening'; currentWritingTaskIndex = 0" class="flex items-center gap-4 cursor-pointer group hover:bg-blue-50 p-4 rounded-xl transition border border-gray-100 hover:border-blue-200 bg-gray-50">
+                            <div @click="moduleView = 'content'; selectedModuleData = selectedUser?.modules[currentModuleIndex]; activeSkill = 'listening'; currentListeningQuestionIndex = 0; initializeMockData('listening')" class="flex items-center gap-4 cursor-pointer group hover:bg-blue-50 p-4 rounded-xl transition border border-gray-100 hover:border-blue-200 bg-gray-50">
                                 <div class="bg-purple-100 p-3 rounded-full text-purple-600"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"></path></svg></div>
                                 <div><h4 class="font-bold text-gray-800 text-lg group-hover:text-blue-700">Listening</h4><p class="text-sm text-gray-500">Enhance your focus and audio understanding</p></div>
                             </div>
-                            <div @click="moduleView = 'content'; selectedModuleData = selectedUser?.modules[currentModuleIndex]; activeSkill = 'speaking'; currentWritingTaskIndex = 0; currentSpeakingPart = 1; currentSpeakingQuestion = 1" class="flex items-center gap-4 cursor-pointer group hover:bg-blue-50 p-4 rounded-xl transition border border-gray-100 hover:border-blue-200 bg-gray-50">
+                            <div @click="moduleView = 'content'; selectedModuleData = selectedUser?.modules[currentModuleIndex]; activeSkill = 'speaking'; currentWritingTaskIndex = 0; currentSpeakingPart = 1; currentSpeakingQuestion = 1; initializeMockData('speaking')" class="flex items-center gap-4 cursor-pointer group hover:bg-blue-50 p-4 rounded-xl transition border border-gray-100 hover:border-blue-200 bg-gray-50">
                                 <div class="bg-yellow-100 p-3 rounded-full text-yellow-600"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg></div>
                                 <div><h4 class="font-bold text-gray-800 text-lg group-hover:text-blue-700">Speaking</h4><p class="text-sm text-gray-500">Build fluency, improve pronunciation, and speak with clarity</p></div>
                             </div>
@@ -572,6 +710,12 @@
                                     <template x-if="activeSkill === 'writing'">
                                         <span class="text-gray-500 font-normal" x-text="'Task ' + (currentWritingTaskIndex + 1)"></span>
                                     </template>
+                                    <template x-if="activeSkill === 'reading'">
+                                        <span class="text-gray-500 font-normal" x-text="'Question ' + (currentReadingQuestionIndex + 1)"></span>
+                                    </template>
+                                    <template x-if="activeSkill === 'listening'">
+                                        <span class="text-gray-500 font-normal" x-text="'Question ' + (currentListeningQuestionIndex + 1)"></span>
+                                    </template>
                                 </h4>
                                 
                                 <!-- Writing Layout: Image + Description -->
@@ -600,26 +744,26 @@
                                     <div>
                                         <!-- Question -->
                                         <div class="mb-6">
-                                            <p class="text-lg text-gray-800 font-medium leading-relaxed" x-text="selectedModuleData?.content?.listening?.question || 'What is the main topic of the conversation?'"></p>
+                                            <p class="text-lg text-gray-800 font-medium leading-relaxed" x-text="selectedModuleData?.content?.listening?.questions?.[currentListeningQuestionIndex]?.question || selectedModuleData?.content?.listening?.question || 'What is the main topic of the conversation?'"></p>
                                         </div>
 
                                         <!-- Multiple Choice Options (4 choices) -->
                                         <div class="space-y-3">
                                             <div class="p-3 border rounded-lg transition" 
-                                                 :class="(selectedModuleData?.content?.listening?.correctAnswer || 1) === 1 ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-gray-50'">
-                                                <p class="text-sm text-gray-700" x-text="selectedModuleData?.content?.listening?.options?.[0] || 'A. Booking a restaurant table'"></p>
+                                                 :class="(selectedModuleData?.content?.listening?.questions?.[currentListeningQuestionIndex]?.correctAnswer || selectedModuleData?.content?.listening?.correctAnswer || 1) === 1 ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-gray-50'">
+                                                <p class="text-sm text-gray-700" x-text="selectedModuleData?.content?.listening?.questions?.[currentListeningQuestionIndex]?.options?.[0] || selectedModuleData?.content?.listening?.options?.[0] || 'A. Booking a restaurant table'"></p>
                                             </div>
                                             <div class="p-3 border rounded-lg transition" 
-                                                 :class="(selectedModuleData?.content?.listening?.correctAnswer || 1) === 2 ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-gray-50'">
-                                                <p class="text-sm text-gray-700" x-text="selectedModuleData?.content?.listening?.options?.[1] || 'B. Making a hotel reservation'"></p>
+                                                 :class="(selectedModuleData?.content?.listening?.questions?.[currentListeningQuestionIndex]?.correctAnswer || selectedModuleData?.content?.listening?.correctAnswer || 1) === 2 ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-gray-50'">
+                                                <p class="text-sm text-gray-700" x-text="selectedModuleData?.content?.listening?.questions?.[currentListeningQuestionIndex]?.options?.[1] || selectedModuleData?.content?.listening?.options?.[1] || 'B. Making a hotel reservation'"></p>
                                             </div>
                                             <div class="p-3 border rounded-lg transition" 
-                                                 :class="(selectedModuleData?.content?.listening?.correctAnswer || 1) === 3 ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-gray-50'">
-                                                <p class="text-sm text-gray-700" x-text="selectedModuleData?.content?.listening?.options?.[2] || 'C. Ordering food delivery'"></p>
+                                                 :class="(selectedModuleData?.content?.listening?.questions?.[currentListeningQuestionIndex]?.correctAnswer || selectedModuleData?.content?.listening?.correctAnswer || 1) === 3 ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-gray-50'">
+                                                <p class="text-sm text-gray-700" x-text="selectedModuleData?.content?.listening?.questions?.[currentListeningQuestionIndex]?.options?.[2] || selectedModuleData?.content?.listening?.options?.[2] || 'C. Ordering food delivery'"></p>
                                             </div>
                                             <div class="p-3 border rounded-lg transition" 
-                                                 :class="(selectedModuleData?.content?.listening?.correctAnswer || 1) === 4 ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-gray-50'">
-                                                <p class="text-sm text-gray-700" x-text="selectedModuleData?.content?.listening?.options?.[3] || 'D. Canceling a reservation'"></p>
+                                                 :class="(selectedModuleData?.content?.listening?.questions?.[currentListeningQuestionIndex]?.correctAnswer || selectedModuleData?.content?.listening?.correctAnswer || 1) === 4 ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-gray-50'">
+                                                <p class="text-sm text-gray-700" x-text="selectedModuleData?.content?.listening?.questions?.[currentListeningQuestionIndex]?.options?.[3] || selectedModuleData?.content?.listening?.options?.[3] || 'D. Canceling a reservation'"></p>
                                             </div>
                                         </div>
                                     </div>
@@ -628,28 +772,28 @@
                                 <!-- Reading Layout: Multiple Choice (4 options) -->
                                 <template x-if="activeSkill === 'reading'">
                                     <div>
-                                <!-- Question -->
-                                <div class="mb-6">
-                                            <p class="text-lg text-gray-800 font-medium leading-relaxed" x-text="selectedModuleData?.content?.reading?.question || 'What is the main idea of the passage?'"></p>
+                                        <!-- Question -->
+                                        <div class="mb-6">
+                                            <p class="text-lg text-gray-800 font-medium leading-relaxed" x-text="selectedModuleData?.content?.reading?.questions?.[currentReadingQuestionIndex]?.question || selectedModuleData?.content?.reading?.question || 'What is the main idea of the passage?'"></p>
                                         </div>
 
                                         <!-- Multiple Choice Options (4 choices) -->
                                         <div class="space-y-3">
                                             <div class="p-3 border rounded-lg transition" 
-                                                 :class="(selectedModuleData?.content?.reading?.correctAnswer || 1) === 1 ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-gray-50'">
-                                                <p class="text-sm text-gray-700" x-text="selectedModuleData?.content?.reading?.options?.[0] || 'A. The importance of reading comprehension'"></p>
+                                                 :class="(selectedModuleData?.content?.reading?.questions?.[currentReadingQuestionIndex]?.correctAnswer || selectedModuleData?.content?.reading?.correctAnswer || 1) === 1 ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-gray-50'">
+                                                <p class="text-sm text-gray-700" x-text="selectedModuleData?.content?.reading?.questions?.[currentReadingQuestionIndex]?.options?.[0] || selectedModuleData?.content?.reading?.options?.[0] || 'A. The importance of reading comprehension'"></p>
                                             </div>
                                             <div class="p-3 border rounded-lg transition" 
-                                                 :class="(selectedModuleData?.content?.reading?.correctAnswer || 1) === 2 ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-gray-50'">
-                                                <p class="text-sm text-gray-700" x-text="selectedModuleData?.content?.reading?.options?.[1] || 'B. Strategies for improving vocabulary'"></p>
+                                                 :class="(selectedModuleData?.content?.reading?.questions?.[currentReadingQuestionIndex]?.correctAnswer || selectedModuleData?.content?.reading?.correctAnswer || 1) === 2 ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-gray-50'">
+                                                <p class="text-sm text-gray-700" x-text="selectedModuleData?.content?.reading?.questions?.[currentReadingQuestionIndex]?.options?.[1] || selectedModuleData?.content?.reading?.options?.[1] || 'B. Strategies for improving vocabulary'"></p>
                                             </div>
                                             <div class="p-3 border rounded-lg transition" 
-                                                 :class="(selectedModuleData?.content?.reading?.correctAnswer || 1) === 3 ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-gray-50'">
-                                                <p class="text-sm text-gray-700" x-text="selectedModuleData?.content?.reading?.options?.[2] || 'C. The history of literature'"></p>
+                                                 :class="(selectedModuleData?.content?.reading?.questions?.[currentReadingQuestionIndex]?.correctAnswer || selectedModuleData?.content?.reading?.correctAnswer || 1) === 3 ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-gray-50'">
+                                                <p class="text-sm text-gray-700" x-text="selectedModuleData?.content?.reading?.questions?.[currentReadingQuestionIndex]?.options?.[2] || selectedModuleData?.content?.reading?.options?.[2] || 'C. The history of literature'"></p>
                                             </div>
                                             <div class="p-3 border rounded-lg transition" 
-                                                 :class="(selectedModuleData?.content?.reading?.correctAnswer || 1) === 4 ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-gray-50'">
-                                                <p class="text-sm text-gray-700" x-text="selectedModuleData?.content?.reading?.options?.[3] || 'D. Techniques for speed reading'"></p>
+                                                 :class="(selectedModuleData?.content?.reading?.questions?.[currentReadingQuestionIndex]?.correctAnswer || selectedModuleData?.content?.reading?.correctAnswer || 1) === 4 ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-gray-50'">
+                                                <p class="text-sm text-gray-700" x-text="selectedModuleData?.content?.reading?.questions?.[currentReadingQuestionIndex]?.options?.[3] || selectedModuleData?.content?.reading?.options?.[3] || 'D. Techniques for speed reading'"></p>
                                             </div>
                                         </div>
                                     </div>
@@ -709,8 +853,23 @@
                                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
                                     </button>
                                 </template>
-                                <template x-if="activeSkill !== 'writing' && activeSkill !== 'speaking'">
-                                <button class="w-10 h-10 rounded-full border border-gray-300 flex items-center justify-center text-gray-400 bg-white shadow-sm hover:bg-gray-50"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg></button>
+                                <template x-if="activeSkill === 'reading'">
+                                    <button 
+                                        @click="if(currentReadingQuestionIndex > 0) currentReadingQuestionIndex--" 
+                                        :disabled="currentReadingQuestionIndex === 0 || !selectedModuleData?.content?.reading?.questions || selectedModuleData.content.reading.questions.length === 0"
+                                        class="w-10 h-10 rounded-full border border-gray-300 flex items-center justify-center text-gray-400 bg-white shadow-sm hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                                    >
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+                                    </button>
+                                </template>
+                                <template x-if="activeSkill === 'listening'">
+                                    <button 
+                                        @click="if(currentListeningQuestionIndex > 0) currentListeningQuestionIndex--" 
+                                        :disabled="currentListeningQuestionIndex === 0 || !selectedModuleData?.content?.listening?.questions || selectedModuleData.content.listening.questions.length === 0"
+                                        class="w-10 h-10 rounded-full border border-gray-300 flex items-center justify-center text-gray-400 bg-white shadow-sm hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                                    >
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+                                    </button>
                                 </template>
                                 <template x-if="activeSkill === 'writing'">
                                     <button 
@@ -730,8 +889,23 @@
                                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
                                     </button>
                                 </template>
-                                <template x-if="activeSkill !== 'writing' && activeSkill !== 'speaking'">
-                                <button class="w-10 h-10 rounded-full bg-black text-white flex items-center justify-center shadow-lg hover:bg-gray-800"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg></button>
+                                <template x-if="activeSkill === 'reading'">
+                                    <button 
+                                        @click="if(selectedModuleData?.content?.reading?.questions && currentReadingQuestionIndex < selectedModuleData.content.reading.questions.length - 1) currentReadingQuestionIndex++" 
+                                        :disabled="!selectedModuleData?.content?.reading?.questions || currentReadingQuestionIndex >= selectedModuleData.content.reading.questions.length - 1"
+                                        class="w-10 h-10 rounded-full bg-black text-white flex items-center justify-center shadow-lg hover:bg-gray-800 disabled:bg-gray-300 disabled:cursor-not-allowed transition"
+                                    >
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+                                    </button>
+                                </template>
+                                <template x-if="activeSkill === 'listening'">
+                                    <button 
+                                        @click="if(selectedModuleData?.content?.listening?.questions && currentListeningQuestionIndex < selectedModuleData.content.listening.questions.length - 1) currentListeningQuestionIndex++" 
+                                        :disabled="!selectedModuleData?.content?.listening?.questions || currentListeningQuestionIndex >= selectedModuleData.content.listening.questions.length - 1"
+                                        class="w-10 h-10 rounded-full bg-black text-white flex items-center justify-center shadow-lg hover:bg-gray-800 disabled:bg-gray-300 disabled:cursor-not-allowed transition"
+                                    >
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+                                    </button>
                                 </template>
                             </div>
                         </div>

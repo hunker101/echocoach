@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<%- include('partials/head') %>
+
+<!-- 
+    APP STATE:
+    currentTab: 'users' | 'modules' | 'testbank' | 'abel'
+    showModal: Controls which modal is open
+    editItem: Temporary storage for editing
+    viewUser: Temporary storage for viewing stats
+    moduleQuestions: Local array to store module questions for this session
+-->
+<body class="bg-gray-100" x-data="<%- include('partials/scripts') %>">
+
+    <!-- Users Data (hidden, for Alpine.js initialization) -->
+    <script id="users-data" type="application/json"><%- JSON.stringify(users) %></script>
+    
+    <!-- Modules Data (hidden, for Alpine.js initialization) -->
+    <script id="modules-data" type="application/json"><%- JSON.stringify(pendingModules) %></script>
+
+    <%- include('partials/header') %>
+
+    <div class="flex h-screen pt-16">
+        <%- include('partials/sidebar') %>
+
+        <!-- Main Content -->
+        <main class="flex-1 overflow-y-auto p-8">
+            <%- include('partials/tabs/users-tab') %>
+            <%- include('partials/tabs/modules-tab') %>
+            <%- include('partials/tabs/testbank-tab') %>
+            <%- include('partials/tabs/moduletestbank-tab') %>
+            <%- include('partials/tabs/abel-tab') %>
+        </main>
+    </div>
+
+    <%- include('partials/modals') %>
+
+</body>
+</html>
+

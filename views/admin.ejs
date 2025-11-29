@@ -45,7 +45,11 @@
     currentWritingTaskIndex: 0,
     currentSpeakingPart: 1,
     currentSpeakingQuestion: 1,
-    previewImage: null, 
+    previewImage: null,
+    usersList: [],
+    createdAtSortOrder: null,
+    modulesList: [],
+    statusSortOrder: null,
     moduleQuestions: [ // Dummy data for Module Test Bank
         { id: 1, description: 'Describe the image below.', image: 'https://placehold.co/300x200?text=Sample+Image' },
         { id: 2, description: 'What is happening in this scene?', image: null }
@@ -131,8 +135,80 @@
             3: 'Part 3: Discussion'
         };
         return titles[this.currentSpeakingPart] || 'Part 1: Introduction and Interview';
+    },
+    initUsers() {
+        const usersDataElement = document.getElementById('users-data');
+        if (usersDataElement) {
+            this.usersList = JSON.parse(usersDataElement.textContent) || [];
+        }
+    },
+    sortByCreatedAt() {
+        if (this.createdAtSortOrder === 'asc') {
+            this.createdAtSortOrder = 'desc';
+        } else if (this.createdAtSortOrder === 'desc') {
+            this.createdAtSortOrder = null;
+        } else {
+            this.createdAtSortOrder = 'asc';
+        }
+        
+        if (this.createdAtSortOrder === null) {
+            this.initUsers();
+            return;
+        }
+        
+        this.usersList.sort((a, b) => {
+            const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+            const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+            
+            if (this.createdAtSortOrder === 'asc') {
+                return dateA - dateB;
+            } else {
+                return dateB - dateA;
+            }
+        });
+    },
+    initModules() {
+        const modulesDataElement = document.getElementById('modules-data');
+        if (modulesDataElement) {
+            this.modulesList = JSON.parse(modulesDataElement.textContent) || [];
+        }
+    },
+    sortByStatus() {
+        if (this.statusSortOrder === 'asc') {
+            this.statusSortOrder = 'desc';
+        } else if (this.statusSortOrder === 'desc') {
+            this.statusSortOrder = null;
+        } else {
+            this.statusSortOrder = 'asc';
+        }
+        
+        if (this.statusSortOrder === null) {
+            this.initModules();
+            return;
+        }
+        
+        this.modulesList.sort((a, b) => {
+            const statusA = (a.status === 'Pending' || a.status === 'Pending Validation') ? 'Pending' : 'Validated';
+            const statusB = (b.status === 'Pending' || b.status === 'Pending Validation') ? 'Pending' : 'Validated';
+            
+            // Sort: Pending comes before Validated
+            const orderA = statusA === 'Pending' ? 0 : 1;
+            const orderB = statusB === 'Pending' ? 0 : 1;
+            
+            if (this.statusSortOrder === 'asc') {
+                return orderA - orderB;
+            } else {
+                return orderB - orderA;
+            }
+        });
     }
 }">
+
+    <!-- Users Data (hidden, for Alpine.js initialization) -->
+    <script id="users-data" type="application/json"><%- JSON.stringify(users) %></script>
+    
+    <!-- Modules Data (hidden, for Alpine.js initialization) -->
+    <script id="modules-data" type="application/json"><%- JSON.stringify(pendingModules) %></script>
 
     <!-- Top Navigation -->
     <nav class="bg-white shadow-sm border-b border-gray-200 fixed w-full z-30">
@@ -189,7 +265,7 @@
         <main class="flex-1 overflow-y-auto p-8">
             
             <!-- 1. USERS TAB -->
-            <div x-show="currentTab === 'users'" x-transition.opacity>
+            <div x-show="currentTab === 'users'" x-transition.opacity x-init="initUsers()">
                 <div class="flex justify-between items-center mb-6">
                     <h2 class="text-2xl font-bold text-gray-800">User Management</h2>
                 </div>
@@ -200,84 +276,102 @@
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Level</th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pre-assessment Result</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created at</th>
+                                <th 
+                                    @click="sortByCreatedAt()"
+                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition flex items-center gap-1"
+                                >
+                                    Created at
+                                    <span class="ml-1">
+                                        <template x-if="createdAtSortOrder === 'asc'">
+                                            <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path>
+                                            </svg>
+                                        </template>
+                                        <template x-if="createdAtSortOrder === 'desc'">
+                                            <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                            </svg>
+                                        </template>
+                                        <template x-if="!createdAtSortOrder">
+                                            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"></path>
+                                            </svg>
+                                        </template>
+                                    </span>
+                                </th>
                                 <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                             </tr>
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-200">
-                            <% users.forEach(function(user) { %>
-                            <tr 
-                                data-user='<%- JSON.stringify(user) %>'
-                                class="hover:bg-gray-50 transition group"
-                            >
-                                <td class="px-6 py-4">
-                                    <div class="flex items-center gap-3">
-                                        <% if (user.photoURL) { %>
-                                            <img 
-                                                src="<%= user.photoURL %>" 
-                                                alt="<%= user.name %>" 
-                                                class="w-10 h-10 rounded-full object-cover cursor-pointer hover:ring-2 hover:ring-blue-500 transition"
-                                                onclick="window.open('<%= user.photoURL %>', '_blank')"
-                                            >
-                                        <% } else { %>
-                                            <div class="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 font-semibold">
-                                                <%= user.name ? user.name.charAt(0).toUpperCase() : 'U' %>
+                            <template x-for="user in usersList" :key="user.id">
+                                <tr 
+                                    :data-user="JSON.stringify(user)"
+                                    class="hover:bg-gray-50 transition group"
+                                >
+                                    <td class="px-6 py-4">
+                                        <div class="flex items-center gap-3">
+                                            <template x-if="user.photoURL">
+                                                <img 
+                                                    :src="user.photoURL" 
+                                                    :alt="user.name" 
+                                                    class="w-10 h-10 rounded-full object-cover cursor-pointer hover:ring-2 hover:ring-blue-500 transition"
+                                                    @click="window.open(user.photoURL, '_blank')"
+                                                >
+                                            </template>
+                                            <template x-if="!user.photoURL">
+                                                <div class="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 font-semibold">
+                                                    <span x-text="user.name ? user.name.charAt(0).toUpperCase() : 'U'"></span>
+                                                </div>
+                                            </template>
+                                            <div>
+                                                <div class="text-sm font-medium text-gray-900" x-text="user.name"></div>
+                                                <div class="text-sm text-gray-500" x-text="user.email"></div>
                                             </div>
-                                        <% } %>
-                                        <div>
-                                            <div class="text-sm font-medium text-gray-900"><%= user.name %></div>
-                                            <div class="text-sm text-gray-500"><%= user.email %></div>
                                         </div>
-                                    </div>
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <span 
-                                        data-user='<%- JSON.stringify(user) %>'
-                                        @click="showModal = 'viewStats'; viewUser = JSON.parse($el.dataset.user)"
-                                        class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full cursor-pointer hover:opacity-80 transition" 
-                                        :class="getLevelClass('<%= user.level %>')"
-                                    ><%= user.level || 'Not Set' %></span>
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <div 
-                                        data-user='<%- JSON.stringify(user) %>'
-                                        @click="showModal = 'viewStats'; viewUser = JSON.parse($el.dataset.user)"
-                                        class="inline-flex items-center gap-1 px-3 py-1.5 bg-yellow-100 rounded-full cursor-pointer hover:bg-yellow-200 transition"
-                                    >
-                                        <span class="text-sm font-semibold text-gray-800"><%= user.preAssessmentResult || '100' %>%</span>
-                                        <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                                        </svg>
-                                    </div>
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="text-sm text-gray-500">
-                                        <% if (user.createdAt) { %>
-                                            <%= new Date(user.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) %>
-                                        <% } else { %>
-                                            <span class="text-gray-400">Not available</span>
-                                        <% } %>
-                                    </div>
-                                    <div class="text-xs text-gray-400">Account Creation</div>
-                                </td>
-                                <td class="px-6 py-4 text-right text-sm font-medium">
-                                    <div class="flex justify-end space-x-3">
-                                        <button 
-                                            data-user='<%- JSON.stringify(user) %>'
-                                            @click.stop="showModal = 'editUser'; editItem = JSON.parse($el.dataset.user)" 
-                                            class="text-blue-600 hover:text-blue-900 bg-gray-100 p-2 rounded-full hover:bg-blue-100 transition">
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
-                                        </button>
-                                        <form action="/admin/delete-user" method="POST" onsubmit="return confirm('Are you sure?');" @click.stop>
-                                            <input type="hidden" name="id" value="<%= user.id %>">
-                                            <button type="submit" class="text-red-600 hover:text-red-900 bg-gray-100 p-2 rounded-full hover:bg-red-100 transition">
-                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <span 
+                                            :data-user="JSON.stringify(user)"
+                                            @click="showModal = 'viewStats'; viewUser = JSON.parse($el.dataset.user)"
+                                            class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full cursor-pointer hover:opacity-80 transition" 
+                                            :class="getLevelClass(user.level)"
+                                            x-text="user.level || 'Not Set'"
+                                        ></span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div 
+                                            :data-user="JSON.stringify(user)"
+                                            @click="showModal = 'viewStats'; viewUser = JSON.parse($el.dataset.user)"
+                                            class="inline-flex items-center gap-1 px-3 py-1.5 bg-yellow-100 rounded-full cursor-pointer hover:bg-yellow-200 transition"
+                                        >
+                                            <span class="text-sm font-semibold text-gray-800" x-text="(user.preAssessmentResult || 100) + '%'"></span>
+                                            <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                            </svg>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="text-sm text-gray-500" x-text="user.createdAt ? new Date(user.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : 'Not available'"></div>
+                                        <div class="text-xs text-gray-400">Account Creation</div>
+                                    </td>
+                                    <td class="px-6 py-4 text-right text-sm font-medium">
+                                        <div class="flex justify-end space-x-3">
+                                            <button 
+                                                :data-user="JSON.stringify(user)"
+                                                @click.stop="showModal = 'editUser'; editItem = JSON.parse($el.dataset.user)" 
+                                                class="text-blue-600 hover:text-blue-900 bg-gray-100 p-2 rounded-full hover:bg-blue-100 transition">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                                             </button>
-                                        </form>
-                                    </div>
-                                </td>
-                            </tr>
-                            <% }); %>
+                                            <form action="/admin/delete-user" method="POST" onsubmit="return confirm('Are you sure?');" @click.stop>
+                                                <input type="hidden" name="id" :value="user.id">
+                                                <button type="submit" class="text-red-600 hover:text-red-900 bg-gray-100 p-2 rounded-full hover:bg-red-100 transition">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </template>
                         </tbody>
                     </table>
                 </div>
@@ -287,7 +381,7 @@
             <div x-show="currentTab === 'modules'" x-cloak x-transition.opacity>
                 
                 <!-- A. LIST VIEW: Select User -->
-                <div x-show="moduleView === 'list'">
+                <div x-show="moduleView === 'list'" x-init="initModules()">
                     <div class="flex justify-between items-center mb-6">
                         <h2 class="text-2xl font-bold text-gray-800">Module Management</h2>
                     </div>
@@ -298,37 +392,60 @@
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rank</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                    <th 
+                                        @click="sortByStatus()"
+                                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition flex items-center gap-1"
+                                    >
+                                        Status
+                                        <span class="ml-1">
+                                            <template x-if="statusSortOrder === 'asc'">
+                                                <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path>
+                                                </svg>
+                                            </template>
+                                            <template x-if="statusSortOrder === 'desc'">
+                                                <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                                </svg>
+                                            </template>
+                                            <template x-if="!statusSortOrder">
+                                                <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"></path>
+                                                </svg>
+                                            </template>
+                                        </span>
+                                    </th>
                                     <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
                                 </tr>
                             </thead>
                             <tbody class="bg-white divide-y divide-gray-200">
-                                <% pendingModules.forEach(function(item) { %>
-                                <tr 
-                                    data-item='<%- JSON.stringify(item) %>'
-                                    @click="moduleView = 'detail'; selectedUser = JSON.parse($el.dataset.item); currentModuleIndex = 0"
-                                    class="hover:bg-gray-50 transition cursor-pointer group"
-                                >
-                                    <td class="px-6 py-4">
-                                        <div class="text-sm font-medium text-gray-900 group-hover:text-blue-600 transition"><%= item.userName %></div>
-                                        <div class="text-sm text-gray-500"><%= item.userEmail %></div>
-                                    </td>
-                                    <td class="px-6 py-4 text-sm text-gray-500"><%= item.userRole %></td>
-                                    <td class="px-6 py-4 whitespace-nowrap">
-                                        <span class="text-sm font-semibold text-gray-900"><%= item.userRank %></span>
-                                    </td>
-                                    <td class="px-6 py-4">
-                                        <% if (item.status === 'Pending' || item.status === 'Pending Validation') { %>
-                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">Pending</span>
-                                        <% } else { %>
-                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Validated</span>
-                                        <% } %>
-                                    </td>
-                                    <td class="px-6 py-4 text-right text-sm text-gray-400 group-hover:text-blue-600">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline-block" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
-                                    </td>
-                                </tr>
-                                <% }); %>
+                                <template x-for="item in modulesList" :key="item.id || item.userEmail">
+                                    <tr 
+                                        :data-item="JSON.stringify(item)"
+                                        @click="moduleView = 'detail'; selectedUser = JSON.parse($el.dataset.item); currentModuleIndex = 0"
+                                        class="hover:bg-gray-50 transition cursor-pointer group"
+                                    >
+                                        <td class="px-6 py-4">
+                                            <div class="text-sm font-medium text-gray-900 group-hover:text-blue-600 transition" x-text="item.userName"></div>
+                                            <div class="text-sm text-gray-500" x-text="item.userEmail"></div>
+                                        </td>
+                                        <td class="px-6 py-4 text-sm text-gray-500" x-text="item.userRole"></td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <span class="text-sm font-semibold text-gray-900" x-text="item.userRank"></span>
+                                        </td>
+                                        <td class="px-6 py-4">
+                                            <template x-if="item.status === 'Pending' || item.status === 'Pending Validation'">
+                                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">Pending</span>
+                                            </template>
+                                            <template x-if="item.status !== 'Pending' && item.status !== 'Pending Validation'">
+                                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Validated</span>
+                                            </template>
+                                        </td>
+                                        <td class="px-6 py-4 text-right text-sm text-gray-400 group-hover:text-blue-600">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline-block" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+                                        </td>
+                                    </tr>
+                                </template>
                             </tbody>
                         </table>
                     </div>
@@ -441,8 +558,8 @@
                              </template>
                              <template x-if="activeSkill !== 'listening'">
                                  <div class="flex flex-col items-center justify-center w-full h-full">
-                                     <p class="text-gray-400 text-lg font-medium mb-2">Content Editor</p>
-                                     <p class="text-sm text-gray-500">Admin can edit the generated content here.</p>
+                             <p class="text-gray-400 text-lg font-medium mb-2">Content Editor</p>
+                             <p class="text-sm text-gray-500">Admin can edit the generated content here.</p>
                                  </div>
                              </template>
                         </div>
@@ -511,8 +628,8 @@
                                 <!-- Reading Layout: Multiple Choice (4 options) -->
                                 <template x-if="activeSkill === 'reading'">
                                     <div>
-                                        <!-- Question -->
-                                        <div class="mb-6">
+                                <!-- Question -->
+                                <div class="mb-6">
                                             <p class="text-lg text-gray-800 font-medium leading-relaxed" x-text="selectedModuleData?.content?.reading?.question || 'What is the main idea of the passage?'"></p>
                                         </div>
 
@@ -562,12 +679,12 @@
                                             >
                                                 Question 2
                                             </button>
-                                        </div>
+                                </div>
 
                                         <!-- Question Display -->
                                         <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
                                             <p class="text-lg text-gray-800 font-medium leading-relaxed" x-text="getCurrentSpeakingQuestion()"></p>
-                                        </div>
+                                </div>
                                     </div>
                                 </template>
                             </div>
@@ -593,7 +710,7 @@
                                     </button>
                                 </template>
                                 <template x-if="activeSkill !== 'writing' && activeSkill !== 'speaking'">
-                                    <button class="w-10 h-10 rounded-full border border-gray-300 flex items-center justify-center text-gray-400 bg-white shadow-sm hover:bg-gray-50"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg></button>
+                                <button class="w-10 h-10 rounded-full border border-gray-300 flex items-center justify-center text-gray-400 bg-white shadow-sm hover:bg-gray-50"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg></button>
                                 </template>
                                 <template x-if="activeSkill === 'writing'">
                                     <button 
@@ -614,7 +731,7 @@
                                     </button>
                                 </template>
                                 <template x-if="activeSkill !== 'writing' && activeSkill !== 'speaking'">
-                                    <button class="w-10 h-10 rounded-full bg-black text-white flex items-center justify-center shadow-lg hover:bg-gray-800"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg></button>
+                                <button class="w-10 h-10 rounded-full bg-black text-white flex items-center justify-center shadow-lg hover:bg-gray-800"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg></button>
                                 </template>
                             </div>
                         </div>
@@ -746,15 +863,15 @@
                 <div>
                     <label class="text-xs text-gray-500">Email</label>
                     <input type="email" name="email" x-model="editItem.email" required class="w-full border p-2 rounded">
-                </div>
-                <div>
-                    <label class="text-xs text-gray-500">Level</label>
-                    <select name="level" x-model="editItem.level" disabled class="w-full border p-2 rounded bg-gray-50 text-gray-500 cursor-not-allowed">
-                        <option value="Beginner">Beginner</option>
-                        <option value="Pre-Intermediate">Pre-Intermediate</option>
-                        <option value="Intermediate">Intermediate</option>
-                        <option value="Advanced">Advanced</option>
-                    </select>
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-500">Level</label>
+                        <select name="level" x-model="editItem.level" disabled class="w-full border p-2 rounded bg-gray-50 text-gray-500 cursor-not-allowed">
+                            <option value="Beginner">Beginner</option>
+                            <option value="Pre-Intermediate">Pre-Intermediate</option>
+                            <option value="Intermediate">Intermediate</option>
+                            <option value="Advanced">Advanced</option>
+                        </select>
                 </div>
                 <div class="flex justify-end gap-2 mt-4">
                     <button type="button" @click="showModal = false" class="px-4 py-2 border rounded">Cancel</button>

@@ -695,7 +695,26 @@ const db = {
         ]
     },
     
-    modules: [] 
+    modules: [],
+    
+    // ============================================
+    // REGULAR USER TEST BANK (Separate from IELTS)
+    // ============================================
+    regularExams: [], // Main collection for Regular User Test Bank exams
+    
+    // Separate collections for each skill type (mirrors finalAssessments structure but isolated)
+    regularWritingExams: [],
+    regularReadingExams: [],
+    regularListeningExams: [],
+    regularSpeakingExams: [],
+    
+    // Tags for Regular User Test Bank (separate from IELTS tags)
+    regularTags: {
+        writing: [],
+        reading: [],
+        listening: [],
+        speaking: []
+    }
 };
 
 module.exports = db;

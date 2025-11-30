@@ -107,4 +107,18 @@ router.post('/admin/save-reading-exam', isAuth, adminController.saveReadingExam)
 router.post('/admin/save-listening-exam', isAuth, adminController.saveListeningExam);
 router.post('/admin/save-speaking-exam', isAuth, adminController.saveSpeakingExam);
 
+// ============================================
+// REGULAR USER TEST BANK ROUTES
+// (Separate from IELTS - uses /admin/regular/*)
+// ============================================
+router.post('/admin/add-regular', isAuth, upload.single('image'), adminController.addRegularExam);
+router.post('/admin/edit-regular', isAuth, upload.single('image'), adminController.editRegularExam);
+router.post('/admin/delete-regular', isAuth, adminController.deleteRegularExam);
+
+// Regular Exam Save Routes (with file upload support for task images)
+router.post('/admin/save-regular-writing-exam', isAuth, uploadFields, adminController.saveRegularWritingExam);
+router.post('/admin/save-regular-reading-exam', isAuth, adminController.saveRegularReadingExam);
+router.post('/admin/save-regular-listening-exam', isAuth, adminController.saveRegularListeningExam);
+router.post('/admin/save-regular-speaking-exam', isAuth, adminController.saveRegularSpeakingExam);
+
 module.exports = router;

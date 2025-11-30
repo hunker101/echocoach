@@ -30,7 +30,6 @@
     showModal: Controls which modal is open
     editItem: Temporary storage for editing
     viewUser: Temporary storage for viewing stats
-    moduleQuestions: Local array to store module questions for this session
 -->
 <body class="bg-gray-100" x-data="{ 
     currentTab: new URLSearchParams(window.location.search).get('tab') || 'users', 
@@ -53,12 +52,36 @@
     modulesList: [],
     statusSortOrder: null,
     assessmentCenterOpen: true,
-    moduleQuestions: [ // Dummy data for Module Test Bank
-        { id: 1, description: 'Describe the image below.', image: 'https://placehold.co/300x200?text=Sample+Image' },
-        { id: 2, description: 'What is happening in this scene?', image: null }
-    ],
     tagsData: {},
     finalAssessmentsList: [],
+    selectedWritingExam: null, // Selected Writing exam for detail view
+    writingExamView: 'list', // 'list' or 'detail'
+    writingTask1: { description: '', image: null, tags: '', previewImage: null },
+    writingTask2: { description: '', image: null, tags: '', previewImage: null },
+    writingExamSaved: false, // Track if exam has been saved
+    readingExamView: 'list', // 'list' or 'detail' for Reading exams
+    selectedReadingExam: null, // Selected Reading exam for detail view
+    selectedReadingExamId: null, // Store the exam ID separately to ensure it's preserved
+    readingPassage: '', // Reading passage content
+    readingQuestions: [], // Array of multiple choice questions
+    currentReadingQuestion: { question: '', optionA: '', optionB: '', optionC: '', optionD: '', correctAnswer: 1, tags: '' },
+    readingExamSaved: false, // Track if exam has been saved
+    listeningExamView: 'list', // 'list' or 'detail' for Listening exams
+    selectedListeningExam: null, // Selected Listening exam for detail view
+    selectedListeningExamId: null, // Store the exam ID separately
+    listeningNarration: '', // Context/Narration field
+    listeningSpeakers: [{ role: 'Speaker 1', accent: 'British', script: '' }, { role: 'Speaker 2', accent: 'British', script: '' }], // Array of speakers (max 2)
+    listeningQuestions: [], // Array of multiple choice questions
+    currentListeningQuestion: { question: '', optionA: '', optionB: '', optionC: '', optionD: '', correctAnswer: 1, tags: '' },
+    listeningExamSaved: false, // Track if exam has been saved
+    speakingExamView: 'list', // 'list' or 'detail' for Speaking exams
+    selectedSpeakingExam: null, // Selected Speaking exam for detail view
+    selectedSpeakingExamId: null, // Store the exam ID separately
+    speakingModuleContent: '', // Module Content / Examiner Instructions (rich text)
+    speakingCurrentPart: 1, // Currently selected part (1, 2, or 3)
+    speakingQuestions: { part1: [], part2: [], part3: [] }, // Questions grouped by part
+    currentSpeakingQuestion: { question: '', tags: '' }, // Current question input
+    speakingExamSaved: false, // Track if exam has been saved
     mockExamView: (() => {
         const urlParams = new URLSearchParams(window.location.search);
         const skill = urlParams.get('skill');
@@ -71,6 +94,771 @@
     getQuestionCount(skill) {
         if (!this.finalAssessmentsList || this.finalAssessmentsList.length === 0) return 0;
         return this.finalAssessmentsList.filter(q => q && q.type && q.type.toLowerCase() === skill.toLowerCase()).length;
+    },
+    openWritingExamDetail(question) {
+        this.selectedWritingExam = question;
+        this.writingExamView = 'detail';
+        // Load existing tasks if available
+        if (question.task1) {
+            this.writingTask1 = {
+                description: question.task1.description || '',
+                image: question.task1.image || null,
+                tags: question.task1.tags || '',
+                previewImage: question.task1.image || null
+            };
+        } else {
+            this.writingTask1 = { description: '', image: null, tags: '', previewImage: null };
+        }
+        if (question.task2) {
+            this.writingTask2 = {
+                description: question.task2.description || '',
+                image: question.task2.image || null,
+                tags: question.task2.tags || '',
+                previewImage: question.task2.image || null
+            };
+        } else {
+            this.writingTask2 = { description: '', image: null, tags: '', previewImage: null };
+        }
+        // Check if exam has been saved before
+        this.writingExamSaved = !!(question.task1 || question.task2);
+    },
+    closeWritingExamDetail() {
+        this.writingExamView = 'list';
+        this.selectedWritingExam = null;
+        this.writingTask1 = { description: '', image: null, tags: '', previewImage: null };
+        this.writingTask2 = { description: '', image: null, tags: '', previewImage: null };
+        this.writingExamSaved = false;
+    },
+    openReadingExamDetail(question, questionId) {
+        // Use the explicitly passed ID first, then try from question object
+        let examId = null;
+        
+        // Priority 1: Use explicitly passed ID (from data attribute or parameter)
+        if (questionId !== undefined && questionId !== null && questionId !== '') {
+            examId = parseInt(questionId);
+            if (!isNaN(examId)) {
+                console.log('Got ID from parameter:', examId);
+            } else {
+                examId = null; // Reset if parse failed
+            }
+        }
+        
+        // Priority 2: Try from question object
+        if ((isNaN(examId) || examId === null) && question && question.id !== undefined && question.id !== null) {
+            examId = parseInt(question.id);
+            if (!isNaN(examId)) {
+                console.log('Got ID from question object:', examId);
+            } else {
+                examId = null; // Reset if parse failed
+            }
+        }
+        
+        // Priority 3: Find from list by matching properties
+        if (isNaN(examId) || examId === null) {
+            // Ensure list is initialized
+            this.initFinalAssessments();
+            const examInList = this.finalAssessmentsList.find(q => {
+                if (q.type !== 'Reading') return false;
+                // Try to match by title, prompt, or description
+                if (question) {
+                    return (q.title && question.title && q.title === question.title) ||
+                           (q.prompt && question.prompt && q.prompt === question.prompt) ||
+                           (q.description && question.description && q.description === question.description);
+                }
+                return false;
+            });
+            if (examInList && examInList.id !== undefined && examInList.id !== null) {
+                const parsedId = parseInt(examInList.id);
+                if (!isNaN(parsedId)) {
+                    examId = parsedId;
+                    console.log('Found ID from list lookup:', examId);
+                }
+            }
+        }
+        
+        // Priority 4: Use the filtered list to find by index
+        if (isNaN(examId) || examId === null) {
+            const filtered = this.getFilteredMockExamQuestions();
+            const currentIndex = filtered.findIndex(q => 
+                (q === question) || 
+                (q.title === question?.title) ||
+                (q.prompt === question?.prompt)
+            );
+            if (currentIndex >= 0 && filtered[currentIndex]) {
+                const filteredQuestion = filtered[currentIndex];
+                if (filteredQuestion.id) {
+                    const parsedId = parseInt(filteredQuestion.id);
+                    if (!isNaN(parsedId)) {
+                        examId = parsedId;
+                        console.log('Found ID from filtered list by index:', examId);
+                    }
+                }
+            }
+        }
+        
+        // Final validation
+        if (isNaN(examId) || examId === null) {
+            console.error('Cannot determine exam ID.');
+            console.error('Passed questionId:', questionId);
+            console.error('Question object:', question);
+            console.error('Question object ID:', question?.id);
+            console.error('Available Reading exams:', this.finalAssessmentsList.filter(q => q.type === 'Reading').map(q => ({ id: q.id, title: q.title })));
+            alert('Error: Cannot determine exam ID. Please refresh the page and try again.');
+            return;
+        }
+        
+        // Store ID separately to ensure it's always available
+        this.selectedReadingExamId = examId;
+        console.log('✓ Stored exam ID in selectedReadingExamId:', this.selectedReadingExamId, 'Type:', typeof this.selectedReadingExamId);
+        
+        // Store the full question object
+        this.selectedReadingExam = question || {};
+        this.selectedReadingExam.id = examId; // Ensure ID is set
+        
+        this.readingExamView = 'detail';
+        // Load existing passage and questions if available
+        this.readingPassage = question?.passage || question?.prompt || question?.description || '';
+        this.readingQuestions = question?.questions || [];
+        this.currentReadingQuestion = { question: '', optionA: '', optionB: '', optionC: '', optionD: '', correctAnswer: 1, tags: '' };
+        // Check if exam has been saved before
+        this.readingExamSaved = !!(question?.passage || question?.questions?.length > 0);
+        
+        // Debug log
+        console.log('✓ Opened reading exam detail. Stored ID:', this.selectedReadingExamId);
+        console.log('✓ Question object ID:', question?.id);
+        console.log('✓ selectedReadingExam.id:', this.selectedReadingExam.id);
+    },
+    closeReadingExamDetail() {
+        this.readingExamView = 'list';
+        this.selectedReadingExam = null;
+        this.selectedReadingExamId = null;
+        this.readingPassage = '';
+        this.readingQuestions = [];
+        this.currentReadingQuestion = { question: '', optionA: '', optionB: '', optionC: '', optionD: '', correctAnswer: 1, tags: '' };
+        this.readingExamSaved = false;
+    },
+    openListeningExamDetail(question, questionId) {
+        // Use the explicitly passed ID first, then try from question object
+        let examId = null;
+        
+        // Priority 1: Use explicitly passed ID
+        if (questionId !== undefined && questionId !== null && questionId !== '') {
+            examId = parseInt(questionId);
+            if (!isNaN(examId)) {
+                console.log('Got ID from parameter:', examId);
+            } else {
+                examId = null;
+            }
+        }
+        
+        // Priority 2: Try from question object
+        if ((isNaN(examId) || examId === null) && question && question.id !== undefined && question.id !== null) {
+            examId = parseInt(question.id);
+            if (!isNaN(examId)) {
+                console.log('Got ID from question object:', examId);
+            } else {
+                examId = null;
+            }
+        }
+        
+        // Priority 3: Find from list by matching properties
+        if (isNaN(examId) || examId === null) {
+            this.initFinalAssessments();
+            const examInList = this.finalAssessmentsList.find(q => {
+                if (q.type !== 'Listening') return false;
+                if (question) {
+                    return (q.title && question.title && q.title === question.title) ||
+                           (q.prompt && question.prompt && q.prompt === question.prompt) ||
+                           (q.description && question.description && q.description === question.description);
+                }
+                return false;
+            });
+            if (examInList && examInList.id !== undefined && examInList.id !== null) {
+                const parsedId = parseInt(examInList.id);
+                if (!isNaN(parsedId)) {
+                    examId = parsedId;
+                    console.log('Found ID from list lookup:', examId);
+                }
+            }
+        }
+        
+        // Final validation
+        if (isNaN(examId) || examId === null) {
+            console.error('Cannot determine exam ID.');
+            alert('Error: Cannot determine exam ID. Please refresh the page and try again.');
+            return;
+        }
+        
+        // Store ID separately
+        this.selectedListeningExamId = examId;
+        console.log('✓ Stored listening exam ID:', this.selectedListeningExamId);
+        
+        // Store the full question object
+        this.selectedListeningExam = question || {};
+        this.selectedListeningExam.id = examId;
+        
+        this.listeningExamView = 'detail';
+        // Load existing data if available
+        this.listeningNarration = question?.narration || question?.prompt || question?.description || '';
+        this.listeningSpeakers = question?.speakers || [{ role: 'Speaker 1', accent: 'British', script: '' }, { role: 'Speaker 2', accent: 'British', script: '' }];
+        this.listeningQuestions = question?.questions || [];
+        this.currentListeningQuestion = { question: '', optionA: '', optionB: '', optionC: '', optionD: '', correctAnswer: 1, tags: '' };
+        // Check if exam has been saved before
+        this.listeningExamSaved = !!(question?.narration || question?.speakers?.length > 0 || question?.questions?.length > 0);
+    },
+    closeListeningExamDetail() {
+        this.listeningExamView = 'list';
+        this.selectedListeningExam = null;
+        this.selectedListeningExamId = null;
+        this.listeningNarration = '';
+        this.listeningSpeakers = [{ role: 'Speaker 1', accent: 'British', script: '' }, { role: 'Speaker 2', accent: 'British', script: '' }];
+        this.listeningQuestions = [];
+        this.currentListeningQuestion = { question: '', optionA: '', optionB: '', optionC: '', optionD: '', correctAnswer: 1, tags: '' };
+        this.listeningExamSaved = false;
+    },
+    addListeningSpeaker() {
+        // Allow unlimited speakers, alternating between Speaker 1 and Speaker 2
+        const lastSpeaker = this.listeningSpeakers[this.listeningSpeakers.length - 1];
+        let nextRole = 'Speaker 1';
+        
+        if (lastSpeaker) {
+            // Determine next speaker role based on last speaker
+            if (lastSpeaker.role === 'Speaker 1') {
+                nextRole = 'Speaker 2';
+            } else {
+                nextRole = 'Speaker 1';
+            }
+        }
+        
+        this.listeningSpeakers.push({ role: nextRole, accent: 'British', script: '' });
+    },
+    removeListeningSpeaker(index) {
+        if (this.listeningSpeakers.length > 1) {
+            this.listeningSpeakers.splice(index, 1);
+            // No need to renumber - keep alternating pattern
+        } else {
+            alert('At least one speaker is required.');
+        }
+    },
+    addListeningQuestion() {
+        if (!this.currentListeningQuestion.question || !this.currentListeningQuestion.optionA) {
+            alert('Please fill in at least the question and option A');
+            return;
+        }
+        const newQuestion = {
+            id: Date.now(),
+            question: this.currentListeningQuestion.question,
+            optionA: this.currentListeningQuestion.optionA,
+            optionB: this.currentListeningQuestion.optionB,
+            optionC: this.currentListeningQuestion.optionC,
+            optionD: this.currentListeningQuestion.optionD,
+            correctAnswer: this.currentListeningQuestion.correctAnswer,
+            tags: this.currentListeningQuestion.tags
+        };
+        this.listeningQuestions.push(newQuestion);
+        // Reset form
+        this.currentListeningQuestion = { question: '', optionA: '', optionB: '', optionC: '', optionD: '', correctAnswer: 1, tags: '' };
+    },
+    removeListeningQuestion(questionId) {
+        this.listeningQuestions = this.listeningQuestions.filter(q => q.id !== questionId);
+    },
+    saveListeningExam() {
+        // Use the separately stored ID
+        let examId = this.selectedListeningExamId;
+        
+        // If ID is still missing, try to get it from selectedListeningExam
+        if (!examId || isNaN(examId)) {
+            if (this.selectedListeningExam && this.selectedListeningExam.id) {
+                examId = parseInt(this.selectedListeningExam.id);
+                this.selectedListeningExamId = examId;
+                console.log('Got ID from selectedListeningExam:', examId);
+            }
+        }
+        
+        // Last resort: find by matching the current title/narration
+        if (!examId || isNaN(examId)) {
+            this.initFinalAssessments();
+            const examInList = this.finalAssessmentsList.find(q => {
+                if (q.type !== 'Listening') return false;
+                return (this.selectedListeningExam?.title && q.title === this.selectedListeningExam.title) ||
+                       (this.listeningNarration && (q.prompt === this.listeningNarration || q.description === this.listeningNarration));
+            });
+            if (examInList && examInList.id) {
+                examId = parseInt(examInList.id);
+                this.selectedListeningExamId = examId;
+                console.log('Found ID from list by content match:', examId);
+            }
+        }
+        
+        if (!examId || isNaN(examId)) {
+            console.error('No valid exam ID found.');
+            alert('Error: Exam ID is missing. Please close and reopen the exam.');
+            return;
+        }
+        
+        console.log('=== SAVE LISTENING EXAM ===');
+        console.log('examId:', examId);
+        console.log('Narration length:', this.listeningNarration.length);
+        console.log('Speakers count:', this.listeningSpeakers.length);
+        console.log('Questions count:', this.listeningQuestions.length);
+        
+        // Prepare JSON payload
+        const payload = {
+            id: examId,
+            narration: this.listeningNarration || '',
+            speakers: this.listeningSpeakers || [],
+            questions: this.listeningQuestions || []
+        };
+        
+        // Submit to server as JSON
+        fetch('/admin/save-listening-exam', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        })
+        .then(response => {
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                return response.text().then(text => {
+                    console.error('Server returned non-JSON response:', text.substring(0, 200));
+                    throw new Error('Server error: ' + (text.substring(0, 100) || 'Unknown error'));
+                });
+            }
+            if (!response.ok) {
+                return response.json().then(data => {
+                    throw new Error(data.error || 'Server error');
+                });
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                console.log('Listening exam saved successfully');
+                this.listeningExamSaved = true;
+                // Update the exam in the list
+                this.initFinalAssessments();
+            } else {
+                throw new Error(data.error || 'Failed to save listening exam');
+            }
+        })
+        .catch(error => {
+            console.error('Error saving listening exam:', error);
+            alert('Error saving listening exam: ' + error.message);
+        });
+    },
+    openSpeakingExamDetail(question, questionId) {
+        // Use the explicitly passed ID first, then try from question object
+        let examId = null;
+        
+        // Priority 1: Use explicitly passed ID
+        if (questionId !== undefined && questionId !== null && questionId !== '') {
+            examId = parseInt(questionId);
+            if (!isNaN(examId)) {
+                console.log('Got ID from parameter:', examId);
+            } else {
+                examId = null;
+            }
+        }
+        
+        // Priority 2: Try from question object
+        if ((isNaN(examId) || examId === null) && question && question.id !== undefined && question.id !== null) {
+            examId = parseInt(question.id);
+            if (!isNaN(examId)) {
+                console.log('Got ID from question object:', examId);
+            } else {
+                examId = null;
+            }
+        }
+        
+        // Priority 3: Find from list by matching properties
+        if (isNaN(examId) || examId === null) {
+            this.initFinalAssessments();
+            const examInList = this.finalAssessmentsList.find(q => {
+                if (q.type !== 'Speaking') return false;
+                if (question) {
+                    return (q.title && question.title && q.title === question.title) ||
+                           (q.prompt && question.prompt && q.prompt === question.prompt) ||
+                           (q.description && question.description && q.description === question.description);
+                }
+                return false;
+            });
+            if (examInList && examInList.id !== undefined && examInList.id !== null) {
+                const parsedId = parseInt(examInList.id);
+                if (!isNaN(parsedId)) {
+                    examId = parsedId;
+                    console.log('Found ID from list lookup:', examId);
+                }
+            }
+        }
+        
+        // Final validation
+        if (isNaN(examId) || examId === null) {
+            console.error('Cannot determine exam ID.');
+            alert('Error: Cannot determine exam ID. Please refresh the page and try again.');
+            return;
+        }
+        
+        // Store ID separately
+        this.selectedSpeakingExamId = examId;
+        console.log('✓ Stored speaking exam ID:', this.selectedSpeakingExamId);
+        
+        // Store the full question object
+        this.selectedSpeakingExam = question || {};
+        this.selectedSpeakingExam.id = examId;
+        
+        this.speakingExamView = 'detail';
+        // Load existing data if available
+        this.speakingModuleContent = question?.moduleContent || question?.prompt || question?.description || '';
+        this.speakingCurrentPart = 1; // Default to Part 1
+        // Load questions grouped by part
+        this.speakingQuestions = {
+            part1: question?.questions?.filter(q => q.partId === 1 || q.part === 1) || [],
+            part2: question?.questions?.filter(q => q.partId === 2 || q.part === 2) || [],
+            part3: question?.questions?.filter(q => q.partId === 3 || q.part === 3) || []
+        };
+        this.currentSpeakingQuestion = { question: '', tags: '' };
+        // Check if exam has been saved before
+        this.speakingExamSaved = !!(question?.moduleContent || question?.questions?.length > 0);
+    },
+    closeSpeakingExamDetail() {
+        this.speakingExamView = 'list';
+        this.selectedSpeakingExam = null;
+        this.selectedSpeakingExamId = null;
+        this.speakingModuleContent = '';
+        this.speakingCurrentPart = 1;
+        this.speakingQuestions = { part1: [], part2: [], part3: [] };
+        this.currentSpeakingQuestion = { question: '', tags: '' };
+        this.speakingExamSaved = false;
+    },
+    addSpeakingQuestion() {
+        if (!this.currentSpeakingQuestion.question || this.currentSpeakingQuestion.question.trim() === '') {
+            alert('Please enter a question prompt');
+            return;
+        }
+        
+        const newQuestion = {
+            id: Date.now(),
+            partId: this.speakingCurrentPart,
+            question: this.currentSpeakingQuestion.question.trim(),
+            tags: this.currentSpeakingQuestion.tags || ''
+        };
+        
+        // Add to the appropriate part array
+        const partKey = `part${this.speakingCurrentPart}`;
+        this.speakingQuestions[partKey].push(newQuestion);
+        
+        // Reset form
+        this.currentSpeakingQuestion = { question: '', tags: '' };
+    },
+    removeSpeakingQuestion(partId, questionId) {
+        const partKey = `part${partId}`;
+        this.speakingQuestions[partKey] = this.speakingQuestions[partKey].filter(q => q.id !== questionId);
+    },
+    editSpeakingQuestion(partId, questionId) {
+        const partKey = `part${partId}`;
+        const question = this.speakingQuestions[partKey].find(q => q.id === questionId);
+        if (question) {
+            this.currentSpeakingQuestion = {
+                question: question.question,
+                tags: question.tags || ''
+            };
+            // Remove the question from the list (will be re-added when saved)
+            this.removeSpeakingQuestion(partId, questionId);
+            // Switch to the part being edited
+            this.speakingCurrentPart = partId;
+        }
+    },
+    saveSpeakingExam() {
+        // Use the separately stored ID
+        let examId = this.selectedSpeakingExamId;
+        
+        // If ID is still missing, try to get it from selectedSpeakingExam
+        if (!examId || isNaN(examId)) {
+            if (this.selectedSpeakingExam && this.selectedSpeakingExam.id) {
+                examId = parseInt(this.selectedSpeakingExam.id);
+                this.selectedSpeakingExamId = examId;
+                console.log('Got ID from selectedSpeakingExam:', examId);
+            }
+        }
+        
+        // Last resort: find by matching the current title/moduleContent
+        if (!examId || isNaN(examId)) {
+            this.initFinalAssessments();
+            const examInList = this.finalAssessmentsList.find(q => {
+                if (q.type !== 'Speaking') return false;
+                return (this.selectedSpeakingExam?.title && q.title === this.selectedSpeakingExam.title) ||
+                       (this.speakingModuleContent && (q.prompt === this.speakingModuleContent || q.description === this.speakingModuleContent));
+            });
+            if (examInList && examInList.id) {
+                examId = parseInt(examInList.id);
+                this.selectedSpeakingExamId = examId;
+                console.log('Found ID from list by content match:', examId);
+            }
+        }
+        
+        if (!examId || isNaN(examId)) {
+            console.error('No valid exam ID found.');
+            alert('Error: Exam ID is missing. Please close and reopen the exam.');
+            return;
+        }
+        
+        console.log('=== SAVE SPEAKING EXAM ===');
+        console.log('examId:', examId);
+        console.log('Module content length:', this.speakingModuleContent.length);
+        console.log('Part 1 questions:', this.speakingQuestions.part1.length);
+        console.log('Part 2 questions:', this.speakingQuestions.part2.length);
+        console.log('Part 3 questions:', this.speakingQuestions.part3.length);
+        
+        // Combine all questions from all parts into a single array
+        const allQuestions = [
+            ...this.speakingQuestions.part1,
+            ...this.speakingQuestions.part2,
+            ...this.speakingQuestions.part3
+        ];
+        
+        // Prepare JSON payload
+        const payload = {
+            id: examId,
+            moduleContent: this.speakingModuleContent || '',
+            questions: allQuestions
+        };
+        
+        // Submit to server as JSON
+        fetch('/admin/save-speaking-exam', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        })
+        .then(response => {
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                return response.text().then(text => {
+                    console.error('Server returned non-JSON response:', text.substring(0, 200));
+                    throw new Error('Server error: ' + (text.substring(0, 100) || 'Unknown error'));
+                });
+            }
+            if (!response.ok) {
+                return response.json().then(data => {
+                    throw new Error(data.error || 'Server error');
+                });
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                console.log('Speaking exam saved successfully');
+                this.speakingExamSaved = true;
+                // Update the exam in the list
+                this.initFinalAssessments();
+            } else {
+                throw new Error(data.error || 'Failed to save speaking exam');
+            }
+        })
+        .catch(error => {
+            console.error('Error saving speaking exam:', error);
+            alert('Error saving speaking exam: ' + error.message);
+        });
+    },
+    addReadingQuestion() {
+        if (!this.currentReadingQuestion.question || !this.currentReadingQuestion.optionA) {
+            alert('Please fill in at least the question and option A');
+            return;
+        }
+        const newQuestion = {
+            id: Date.now(),
+            question: this.currentReadingQuestion.question,
+            optionA: this.currentReadingQuestion.optionA,
+            optionB: this.currentReadingQuestion.optionB,
+            optionC: this.currentReadingQuestion.optionC,
+            optionD: this.currentReadingQuestion.optionD,
+            correctAnswer: this.currentReadingQuestion.correctAnswer,
+            tags: this.currentReadingQuestion.tags
+        };
+        this.readingQuestions.push(newQuestion);
+        // Reset form
+        this.currentReadingQuestion = { question: '', optionA: '', optionB: '', optionC: '', optionD: '', correctAnswer: 1, tags: '' };
+    },
+    removeReadingQuestion(questionId) {
+        this.readingQuestions = this.readingQuestions.filter(q => q.id !== questionId);
+    },
+    saveReadingExam() {
+        // Use the separately stored ID - this is the most reliable method
+        let examId = this.selectedReadingExamId;
+        
+        // If ID is still missing, try to get it from selectedReadingExam
+        if (!examId || isNaN(examId)) {
+            if (this.selectedReadingExam && this.selectedReadingExam.id) {
+                examId = parseInt(this.selectedReadingExam.id);
+                this.selectedReadingExamId = examId; // Update stored ID
+                console.log('Got ID from selectedReadingExam:', examId);
+            }
+        }
+        
+        // Last resort: find by matching the current passage/title
+        if (!examId || isNaN(examId)) {
+            this.initFinalAssessments();
+            const examInList = this.finalAssessmentsList.find(q => {
+                if (q.type !== 'Reading') return false;
+                // Match by title or passage content
+                return (this.selectedReadingExam?.title && q.title === this.selectedReadingExam.title) ||
+                       (this.readingPassage && (q.prompt === this.readingPassage || q.description === this.readingPassage));
+            });
+            if (examInList && examInList.id) {
+                examId = parseInt(examInList.id);
+                this.selectedReadingExamId = examId;
+                console.log('Found ID from list by content match:', examId);
+            }
+        }
+        
+        if (!examId || isNaN(examId)) {
+            console.error('No valid exam ID found. Stored ID:', this.selectedReadingExamId);
+            console.error('Selected exam object:', this.selectedReadingExam);
+            console.error('Available Reading exams:', this.finalAssessmentsList.filter(q => q.type === 'Reading'));
+            alert('Error: Exam ID is missing. Please close and reopen the exam.');
+            return;
+        }
+        
+        console.log('Saving reading exam with ID:', examId, 'Type:', typeof examId);
+        console.log('Passage length:', this.readingPassage.length);
+        console.log('Questions count:', this.readingQuestions.length);
+        console.log('selectedReadingExamId:', this.selectedReadingExamId);
+        
+        // Prepare JSON payload (not FormData, since we're not uploading files)
+        const payload = {
+            id: examId,
+            passage: this.readingPassage || '',
+            questions: this.readingQuestions || []
+        };
+        
+        console.log('Payload to send:', {
+            id: payload.id,
+            passageLength: payload.passage.length,
+            questionsCount: payload.questions.length
+        });
+        
+        // Submit to server as JSON
+        fetch('/admin/save-reading-exam', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        })
+        .then(response => {
+            // Check content type to see if it's JSON or HTML
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                return response.text().then(text => {
+                    console.error('Server returned non-JSON response:', text.substring(0, 200));
+                    throw new Error('Server error: ' + (text.substring(0, 100) || 'Unknown error'));
+                });
+            }
+            if (!response.ok) {
+                return response.json().then(data => {
+                    throw new Error(data.error || 'Server error');
+                });
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                this.readingExamSaved = true;
+                // Update the exam in the list
+                const index = this.finalAssessmentsList.findIndex(q => parseInt(q.id) === examId);
+                if (index > -1) {
+                    this.finalAssessmentsList[index].passage = this.readingPassage;
+                    this.finalAssessmentsList[index].questions = this.readingQuestions;
+                    this.selectedReadingExam = this.finalAssessmentsList[index];
+                    this.selectedReadingExamId = examId; // Ensure ID is still set
+                }
+            } else {
+                alert('Error saving reading exam: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error saving reading exam: ' + error.message);
+        });
+    },
+    saveWritingExam() {
+        if (!this.selectedWritingExam) return;
+        
+        // Show preview modal
+        this.showModal = 'writingExamPreview';
+    },
+    confirmWritingExamSave() {
+        if (!this.selectedWritingExam) return;
+        
+        // Prepare form data
+        const formData = new FormData();
+        formData.append('id', this.selectedWritingExam.id);
+        formData.append('task1Description', this.writingTask1.description);
+        formData.append('task1Tags', this.writingTask1.tags);
+        formData.append('task2Description', this.writingTask2.description);
+        formData.append('task2Tags', this.writingTask2.tags);
+        
+        // Append image files if they exist
+        if (this.writingTask1.image && this.writingTask1.image instanceof File) {
+            formData.append('task1Image', this.writingTask1.image);
+        }
+        if (this.writingTask2.image && this.writingTask2.image instanceof File) {
+            formData.append('task2Image', this.writingTask2.image);
+        }
+        
+        // Submit to server
+        fetch('/admin/save-writing-exam', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.text().then(text => {
+                    throw new Error(text || 'Server error');
+                });
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                this.writingExamSaved = true;
+                // Update the exam in the list
+                const index = this.finalAssessmentsList.findIndex(q => q.id === this.selectedWritingExam.id);
+                if (index > -1) {
+                    this.finalAssessmentsList[index].task1 = {
+                        description: this.writingTask1.description,
+                        tags: this.writingTask1.tags,
+                        image: data.task1Image || this.writingTask1.image || null
+                    };
+                    this.finalAssessmentsList[index].task2 = {
+                        description: this.writingTask2.description,
+                        tags: this.writingTask2.tags,
+                        image: data.task2Image || this.writingTask2.image || null
+                    };
+                    // Update preview images with saved image paths
+                    if (data.task1Image) {
+                        this.writingTask1.previewImage = data.task1Image;
+                        this.writingTask1.image = data.task1Image;
+                    }
+                    if (data.task2Image) {
+                        this.writingTask2.previewImage = data.task2Image;
+                        this.writingTask2.image = data.task2Image;
+                    }
+                    this.selectedWritingExam = this.finalAssessmentsList[index];
+                }
+                // Close preview modal and hide content editor
+                this.showModal = false;
+            } else {
+                alert('Error saving writing exam: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error saving writing exam: ' + error.message);
+        });
     },
     initTags() {
         const tagsDataElement = document.getElementById('tags-data');
@@ -94,9 +882,7 @@
     },
     getFilteredMockExamQuestions() {
         // Always initialize data first
-        if (this.finalAssessmentsList.length === 0) {
             this.initFinalAssessments();
-        }
         
         if (!this.mockExamSkill) {
             return this.finalAssessmentsList || [];
@@ -112,6 +898,11 @@
             const questionType = (q.type || '').toLowerCase();
             return questionType === skillType;
         });
+        
+        // Debug: Log filtered results
+        if (skillType === 'writing') {
+            console.log('Filtered Writing questions:', filtered);
+        }
         
         return filtered;
     },
@@ -172,39 +963,17 @@
             this.previewImage = URL.createObjectURL(file);
         }
     },
-    addModuleQuestion() {
-        const desc = document.getElementById('mq-desc').value;
-        this.moduleQuestions.push({
-            id: Date.now(),
-            description: desc,
-            image: this.previewImage
-        });
-        this.showModal = false;
-        this.previewImage = null;
-        document.getElementById('mq-desc').value = ''; 
-    },
-    deleteModuleQuestion(id) {
-        if(confirm('Delete this question?')) {
-            this.moduleQuestions = this.moduleQuestions.filter(q => q.id !== id);
+    handleWritingTaskImageUpload(event, taskNumber) {
+        const file = event.target.files[0];
+        if (file) {
+            if (taskNumber === 1) {
+                this.writingTask1.previewImage = URL.createObjectURL(file);
+                this.writingTask1.image = file;
+            } else if (taskNumber === 2) {
+                this.writingTask2.previewImage = URL.createObjectURL(file);
+                this.writingTask2.image = file;
+            }
         }
-    },
-    openEditModuleQuestion(q) {
-        this.editItem = JSON.parse(JSON.stringify(q)); // Deep copy
-        this.previewImage = q.image;
-        this.showModal = 'editModuleQuestion';
-    },
-    updateModuleQuestion() {
-        const index = this.moduleQuestions.findIndex(q => q.id === this.editItem.id);
-        if (index !== -1) {
-            this.moduleQuestions[index] = {
-                ...this.moduleQuestions[index],
-                description: this.editItem.description,
-                image: this.previewImage
-            };
-        }
-        this.showModal = false;
-        this.previewImage = null;
-        this.editItem = {};
     },
     getSpeakingQuestion(part, question) {
         const mockQuestions = {
@@ -496,11 +1265,7 @@
                 <div x-show="assessmentCenterOpen" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 transform -translate-y-2" x-transition:enter-end="opacity-100 transform translate-y-0" x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100 transform translate-y-0" x-transition:leave-end="opacity-0 transform -translate-y-2">
                     <button @click="currentTab = 'testbank'" :class="currentTab === 'testbank' ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50'" class="w-full flex items-center space-x-3 px-4 py-3 rounded-lg font-medium transition">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
-                        <span>General Test Bank</span>
-                    </button>
-                    <button @click="currentTab = 'moduletestbank'" :class="currentTab === 'moduletestbank' ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50'" class="w-full flex items-center space-x-3 px-4 py-3 rounded-lg font-medium transition">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"></path></svg>
-                        <span>Module Quiz Bank</span>
+                        <span>Regular User Test Bank</span>
                     </button>
                     <button @click="currentTab = 'abel'" :class="currentTab === 'abel' ? 'bg-purple-50 text-purple-700' : 'text-gray-600 hover:bg-gray-50'" class="w-full flex items-center space-x-3 px-4 py-3 rounded-lg font-medium transition">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
@@ -1029,7 +1794,7 @@
             <!-- 3. TEST BANK TAB -->
             <div x-show="currentTab === 'testbank'" x-cloak x-transition.opacity>
                 <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-2xl font-bold text-gray-800">General Test Bank</h2>
+                    <h2 class="text-2xl font-bold text-gray-800">Regular User Test Bank</h2>
                     <div class="flex gap-3">
                         <button @click="showModal = 'generateAI'" class="ai-gradient text-white px-4 py-2 rounded-lg shadow-md hover:opacity-90 transition flex items-center gap-2">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -1059,48 +1824,6 @@
                         </div>
                     </div>
                     <% }); %>
-                </div>
-            </div>
-
-            <!-- 4. NEW TAB: MODULE TEST BANK -->
-            <div x-show="currentTab === 'moduletestbank'" x-cloak x-transition.opacity>
-                <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-2xl font-bold text-gray-800">Module Task 1</h2>
-                    <button @click="showModal = 'addModuleQuestion'" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 shadow-sm transition flex items-center gap-2">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-                        Add Content
-                    </button>
-                </div>
-                <!-- Card Layout for Questions -->
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    <template x-for="q in moduleQuestions" :key="q.id">
-                         <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col group hover:shadow-md transition">
-                             <template x-if="q.image">
-                                 <div class="h-40 w-full bg-gray-100 flex items-center justify-center overflow-hidden relative">
-                                    <img :src="q.image" class="w-full h-full object-cover">
-                                 </div>
-                             </template>
-                             <div class="p-5 flex-1 flex flex-col">
-                                 <div class="flex-1">
-                                     <p class="text-gray-800 font-medium text-sm line-clamp-3" x-text="q.description"></p>
-                                 </div>
-                                 <div class="mt-4 flex justify-between items-center pt-4 border-t border-gray-100">
-                                     <span class="text-xs text-gray-400">ID: <span x-text="q.id"></span></span>
-                                     <div class="flex gap-2 opacity-80 group-hover:opacity-100 transition">
-                                         <button @click="openEditModuleQuestion(q)" class="text-blue-600 hover:bg-blue-50 p-1 rounded"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg></button>
-                                         <button @click="deleteModuleQuestion(q.id)" class="text-red-600 hover:bg-red-50 p-1 rounded"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>
-                                     </div>
-                                 </div>
-                             </div>
-                         </div>
-                    </template>
-                </div>
-                <div x-show="moduleQuestions.length === 0" class="text-center py-12 border border-dashed border-gray-300 rounded-lg bg-gray-50">
-                    <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-50 mb-4">
-                        <svg class="w-8 h-8 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
-                    </div>
-                    <h3 class="text-lg font-medium text-gray-900">No module content yet</h3>
-                    <p class="text-gray-500 max-w-sm mx-auto mt-1">Add questions, reading passages, or listening exercises specific to modules here.</p>
                 </div>
             </div>
 
@@ -1151,19 +1874,941 @@
 
                 <!-- Skill Questions View -->
                 <template x-if="mockExamView === 'skill'">
-                    <div>
+                    <div x-effect="initFinalAssessments()">
                         <div class="flex justify-between items-center mb-6">
                             <div class="flex items-center gap-3">
                                 <button @click="mockExamView = 'list'; mockExamSkill = null" class="text-gray-500 hover:text-gray-800 p-2 hover:bg-gray-100 rounded-full transition">
                                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
                                 </button>
-                                <h2 class="text-2xl font-bold text-gray-800 capitalize" x-text="mockExamSkill"></h2>
+                                <h2 class="text-2xl font-bold text-gray-800" x-text="mockExamSkill === 'writing' ? 'Writing exam questions' : mockExamSkill === 'reading' ? 'Reading exam questions' : mockExamSkill === 'listening' ? 'Listening exam questions' : mockExamSkill === 'speaking' ? 'Speaking exam questions' : mockExamSkill.charAt(0).toUpperCase() + mockExamSkill.slice(1)"></h2>
                             </div>
-                            <button @click="showModal = 'addAbel'; editItem = { type: mockExamSkill.charAt(0).toUpperCase() + mockExamSkill.slice(1) }; previewImage = null" class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition">+ Add Question</button>
+                            <button x-show="!((mockExamSkill === 'writing' && writingExamView === 'detail') || (mockExamSkill === 'reading' && readingExamView === 'detail') || (mockExamSkill === 'listening' && listeningExamView === 'detail'))" @click="showModal = 'addAbel'; editItem = { type: mockExamSkill.charAt(0).toUpperCase() + mockExamSkill.slice(1) }; previewImage = null" class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition flex items-center gap-2">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                                <span x-text="(mockExamSkill === 'writing' || mockExamSkill === 'reading' || mockExamSkill === 'listening') ? 'Add Exam' : '+ Add Question'"></span>
+                            </button>
                         </div>
                         <div class="space-y-4">
-                            <!-- Render based on skill type -->
-                            <template x-for="(question, index) in getFilteredMockExamQuestions()" :key="question.id">
+                            <!-- Writing Detail View -->
+                            <template x-if="mockExamSkill === 'writing' && writingExamView === 'detail'">
+                                <div class="bg-white rounded-lg shadow-sm">
+                                    <!-- Header -->
+                                    <div class="flex items-center justify-between p-6 border-b border-gray-200">
+                                        <div class="flex items-center gap-4">
+                                            <button @click="closeWritingExamDetail()" class="text-gray-500 hover:text-gray-800 p-2 hover:bg-gray-100 rounded-full transition">
+                                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+                                            </button>
+                                            <div>
+                                                <h2 class="text-2xl font-bold text-gray-900">Writing</h2>
+                                                <p class="text-sm text-gray-500" x-text="selectedWritingExam?.title || 'Writing Exam'"></p>
+                                            </div>
+                                        </div>
+                                        <div class="flex items-center gap-3">
+                                            <button x-show="writingExamSaved" @click="writingExamSaved = false" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition flex items-center gap-2">
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                                                Edit
+                                            </button>
+                                            <button x-show="!writingExamSaved" @click="saveWritingExam()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition flex items-center gap-2">
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                                                Save
+                                            </button>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Content Editor (shown only when not saved) -->
+                                    <div x-show="!writingExamSaved" class="p-6">
+                                        <div class="border-2 border-dashed border-gray-300 rounded-lg p-8 min-h-[400px] bg-gray-50">
+                                            <h3 class="text-lg font-semibold text-gray-700 mb-2">Content Editor</h3>
+                                            <p class="text-sm text-gray-500 mb-4">Admin can edit the generated content here.</p>
+                                            
+                                            <!-- Writing Task 1 Input -->
+                                            <div class="mb-6">
+                                                <label class="block text-sm font-medium text-gray-700 mb-2">Writing Task 1</label>
+                                                
+                                                <!-- Image Upload -->
+                                                <div class="mb-3">
+                                                    <label class="block text-xs text-gray-600 mb-1">Upload Image (Optional)</label>
+                                                    <div class="border-2 border-dashed border-gray-300 rounded-lg p-4 bg-white">
+                                                        <div class="text-center">
+                                                            <div x-show="!writingTask1.previewImage && !writingTask1.image">
+                                                                <svg class="mx-auto h-10 w-10 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                                                                    <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                                                </svg>
+                                                                <div class="mt-2">
+                                                                    <label class="cursor-pointer">
+                                                                        <span class="text-sm text-blue-600 hover:text-blue-500 font-medium">Click to upload</span>
+                                                                        <input type="file" accept="image/*" class="hidden" @change="handleWritingTaskImageUpload($event, 1)">
+                                                                    </label>
+                                                                </div>
+                                                            </div>
+                                                            <div x-show="writingTask1.previewImage || writingTask1.image" class="relative">
+                                                                <img :src="writingTask1.previewImage || writingTask1.image" class="max-h-32 mx-auto rounded-md shadow-sm">
+                                                                <button type="button" @click="writingTask1.previewImage = null; writingTask1.image = null" class="absolute top-0 right-0 bg-red-500 text-white rounded-full p-1 -mt-2 -mr-2 shadow-sm hover:bg-red-600">
+                                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                
+                                                <textarea x-model="writingTask1.description" placeholder="Enter Writing Task 1 description..." class="w-full border border-gray-300 rounded-lg p-3 h-32 resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"></textarea>
+                                                <div class="mt-2">
+                                                    <label class="block text-xs text-gray-600 mb-1">Tags (comma-separated)</label>
+                                                    <input type="text" x-model="writingTask1.tags" placeholder="e.g., detail_recognition, Numbers, section_1" class="w-full border border-gray-300 rounded-lg p-2 text-sm">
+                                                </div>
+                                            </div>
+                                            
+                                            <!-- Writing Task 2 Input -->
+                                            <div>
+                                                <label class="block text-sm font-medium text-gray-700 mb-2">Writing Task 2</label>
+                                                
+                                                <!-- Image Upload -->
+                                                <div class="mb-3">
+                                                    <label class="block text-xs text-gray-600 mb-1">Upload Image (Optional)</label>
+                                                    <div class="border-2 border-dashed border-gray-300 rounded-lg p-4 bg-white">
+                                                        <div class="text-center">
+                                                            <div x-show="!writingTask2.previewImage && !writingTask2.image">
+                                                                <svg class="mx-auto h-10 w-10 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                                                                    <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                                                </svg>
+                                                                <div class="mt-2">
+                                                                    <label class="cursor-pointer">
+                                                                        <span class="text-sm text-blue-600 hover:text-blue-500 font-medium">Click to upload</span>
+                                                                        <input type="file" accept="image/*" class="hidden" @change="handleWritingTaskImageUpload($event, 2)">
+                                                                    </label>
+                                                                </div>
+                                                            </div>
+                                                            <div x-show="writingTask2.previewImage || writingTask2.image" class="relative">
+                                                                <img :src="writingTask2.previewImage || writingTask2.image" class="max-h-32 mx-auto rounded-md shadow-sm">
+                                                                <button type="button" @click="writingTask2.previewImage = null; writingTask2.image = null" class="absolute top-0 right-0 bg-red-500 text-white rounded-full p-1 -mt-2 -mr-2 shadow-sm hover:bg-red-600">
+                                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                
+                                                <textarea x-model="writingTask2.description" placeholder="Enter Writing Task 2 description..." class="w-full border border-gray-300 rounded-lg p-3 h-32 resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"></textarea>
+                                                <div class="mt-2">
+                                                    <label class="block text-xs text-gray-600 mb-1">Tags (comma-separated)</label>
+                                                    <input type="text" x-model="writingTask2.tags" placeholder="e.g., discussion, opinion, task_2" class="w-full border border-gray-300 rounded-lg p-2 text-sm">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Writing Tasks Display (shown after save) -->
+                                    <div x-show="writingExamSaved" class="grid grid-cols-1 lg:grid-cols-2 gap-6 p-6">
+                                        <!-- Writing Task 1 Card -->
+                                        <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+                                            <h3 class="text-lg font-bold text-gray-900 mb-4">Writing Task 1</h3>
+                                            <div class="bg-gray-200 rounded-lg h-48 flex items-center justify-center mb-4 overflow-hidden">
+                                                <template x-if="writingTask1.previewImage || writingTask1.image">
+                                                    <img :src="writingTask1.previewImage || writingTask1.image" alt="Writing Task 1" class="w-full h-full object-cover">
+                                                </template>
+                                                <template x-if="!writingTask1.previewImage && !writingTask1.image">
+                                                    <span class="text-gray-500 text-lg font-medium">Writing Task 1</span>
+                                                </template>
+                                            </div>
+                                            <p class="text-sm text-gray-700 leading-relaxed mb-3" x-text="writingTask1.description || 'No description entered yet.'"></p>
+                                            <div class="text-xs text-gray-500" x-show="writingTask1.tags">
+                                                <span class="font-semibold">TAGS:</span> <span x-text="writingTask1.tags"></span>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Writing Task 2 Card -->
+                                        <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+                                            <h3 class="text-lg font-bold text-gray-900 mb-4">Writing Task 2</h3>
+                                            <div class="bg-gray-200 rounded-lg h-48 flex items-center justify-center mb-4 overflow-hidden">
+                                                <template x-if="writingTask2.previewImage || writingTask2.image">
+                                                    <img :src="writingTask2.previewImage || writingTask2.image" alt="Writing Task 2" class="w-full h-full object-cover">
+                                                </template>
+                                                <template x-if="!writingTask2.previewImage && !writingTask2.image">
+                                                    <span class="text-gray-500 text-lg font-medium">Writing Task 2</span>
+                                                </template>
+                                            </div>
+                                            <p class="text-sm text-gray-700 leading-relaxed mb-3" x-text="writingTask2.description || 'No description entered yet.'"></p>
+                                            <div class="text-xs text-gray-500" x-show="writingTask2.tags">
+                                                <span class="font-semibold">TAGS:</span> <span x-text="writingTask2.tags"></span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+                            
+                            <!-- Writing Questions List -->
+                            <template x-if="mockExamSkill === 'writing' && writingExamView === 'list'">
+                                <div>
+                                    <template x-for="(question, index) in getFilteredMockExamQuestions()" :key="'writing-' + question.id">
+                                        <div @click="openWritingExamDetail(question)" class="bg-white rounded-lg border border-gray-200 overflow-hidden group hover:shadow-md transition mb-4 cursor-pointer">
+                                            <div class="flex gap-4 p-4">
+                                        <!-- Image Placeholder -->
+                                        <div class="flex-shrink-0">
+                                            <div class="w-24 h-24 bg-blue-500 rounded-lg flex items-center justify-center overflow-hidden">
+                                                <template x-if="question.image">
+                                                    <img :src="question.image" alt="Writing exam image" class="w-full h-full object-cover">
+                                                </template>
+                                                <template x-if="!question.image">
+                                                    <svg class="w-12 h-12 text-white opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                                    </svg>
+                                                </template>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Content -->
+                                        <div class="flex-1 flex flex-col justify-between min-w-0">
+                                            <div>
+                                                <h3 class="text-lg font-bold text-gray-900 mb-2" x-text="question.title || 'Writing exam ' + (index + 1)"></h3>
+                                                <p class="text-sm text-gray-600 leading-relaxed line-clamp-3" x-text="question.prompt || question.description || 'No description available.'"></p>
+                                            </div>
+                                            
+                                            <!-- Actions -->
+                                            <div class="flex items-center gap-2 mt-3 opacity-0 group-hover:opacity-100 transition">
+                                                <button :data-abel="JSON.stringify(question)" @click="showModal = 'editAbel'; editItem = JSON.parse($el.dataset.abel); previewImage = question.image || null" class="text-blue-600 hover:text-blue-700 p-1.5 rounded hover:bg-blue-50 transition" title="Edit">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                                </button>
+                                                <form action="/admin/delete-abel" method="POST" onsubmit="return confirm('Delete this exam?');" class="inline">
+                                                    <input type="hidden" name="id" :value="question.id">
+                                                    <button type="submit" class="text-red-600 hover:text-red-700 p-1.5 rounded hover:bg-red-50 transition" title="Delete">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    </template>
+                                </div>
+                            </template>
+                            
+                            <!-- Reading Questions List -->
+                            <template x-if="mockExamSkill === 'reading' && readingExamView === 'list'">
+                                <div>
+                                    <template x-for="(question, index) in getFilteredMockExamQuestions()" :key="'reading-' + index + '-' + (question.id || index)">
+                                        <div :data-exam-id="question.id" @click.stop="const examId = parseInt($el.getAttribute('data-exam-id')) || parseInt(question.id) || null; console.log('Click - data-exam-id:', $el.getAttribute('data-exam-id'), 'question.id:', question.id, 'parsed examId:', examId); if (examId) { openReadingExamDetail(question, examId); } else { console.error('No ID found for question:', question); alert('Error: Exam ID not found'); }" class="bg-white rounded-lg border border-gray-200 overflow-hidden group hover:shadow-md transition mb-4 cursor-pointer">
+                                            <div class="flex gap-4 p-4">
+                                                <!-- Image Placeholder -->
+                                                <div class="flex-shrink-0">
+                                                    <div class="w-24 h-24 bg-green-500 rounded-lg flex items-center justify-center overflow-hidden">
+                                                        <template x-if="question.image">
+                                                            <img :src="question.image" alt="Reading exam image" class="w-full h-full object-cover">
+                                                        </template>
+                                                        <template x-if="!question.image">
+                                                            <svg class="w-12 h-12 text-white opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
+                                                            </svg>
+                                                        </template>
+                                                    </div>
+                                                </div>
+                                                
+                                                <!-- Content -->
+                                                <div class="flex-1 flex flex-col justify-between min-w-0">
+                                                    <div>
+                                                        <h3 class="text-lg font-bold text-gray-900 mb-2" x-text="question.title || 'Reading exam ' + (index + 1)"></h3>
+                                                        <p class="text-sm text-gray-600 leading-relaxed line-clamp-3" x-text="question.prompt || question.description || 'No description available.'"></p>
+                                                    </div>
+                                                    
+                                                    <!-- Actions -->
+                                                    <div class="flex items-center gap-2 mt-3 opacity-0 group-hover:opacity-100 transition">
+                                                        <button :data-abel="JSON.stringify(question)" @click.stop="showModal = 'editAbel'; editItem = JSON.parse($el.dataset.abel); previewImage = question.image || null" class="text-blue-600 hover:text-blue-700 p-1.5 rounded hover:bg-blue-50 transition" title="Edit">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                                        </button>
+                                                        <form action="/admin/delete-abel" method="POST" onsubmit="return confirm('Delete this exam?');" class="inline">
+                                                            <input type="hidden" name="id" :value="question.id">
+                                                            <button type="submit" class="text-red-600 hover:text-red-700 p-1.5 rounded hover:bg-red-50 transition" title="Delete">
+                                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                            </button>
+                                                        </form>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+                            
+                            <!-- Reading Detail View -->
+                            <template x-if="mockExamSkill === 'reading' && readingExamView === 'detail'">
+                                <div class="bg-white rounded-lg shadow-sm">
+                                    <!-- Header -->
+                                    <div class="flex items-center justify-between p-6 border-b border-gray-200">
+                                        <div class="flex items-center gap-4">
+                                            <button @click="closeReadingExamDetail()" class="text-gray-500 hover:text-gray-800 p-2 hover:bg-gray-100 rounded-full transition">
+                                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+                                            </button>
+                                            <div>
+                                                <h2 class="text-2xl font-bold text-gray-900">Reading</h2>
+                                                <p class="text-sm text-gray-500" x-text="selectedReadingExam?.title || 'Reading Exam'"></p>
+                                            </div>
+                                        </div>
+                                        <div class="flex items-center gap-3">
+                                            <button x-show="readingExamSaved" @click="readingExamSaved = false" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition flex items-center gap-2">
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                                                Edit
+                                            </button>
+                                            <button x-show="!readingExamSaved" @click="saveReadingExam()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition flex items-center gap-2">
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                                                Save
+                                            </button>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 p-6">
+                                        <!-- Reading Passage Content Editor (Left - 2 columns) -->
+                                        <div x-show="!readingExamSaved" class="lg:col-span-2">
+                                            <div class="border-2 border-dashed border-gray-300 rounded-lg p-8 min-h-[400px] bg-gray-50">
+                                                <h3 class="text-lg font-semibold text-gray-700 mb-2">Content Editor</h3>
+                                                <p class="text-sm text-gray-500 mb-4">Admin can edit the generated content here.</p>
+                                                
+                                                <!-- Reading Passage Input -->
+                                                <div>
+                                                    <label class="block text-sm font-medium text-gray-700 mb-2">Reading Passage</label>
+                                                    <textarea x-model="readingPassage" placeholder="Enter or paste the reading passage content here..." class="w-full border border-gray-300 rounded-lg p-3 h-96 resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"></textarea>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Multiple Choice Questions Editor (Right - 1 column) -->
+                                        <div x-show="!readingExamSaved" class="lg:col-span-1">
+                                            <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 min-h-[400px] bg-gray-50">
+                                                <h3 class="text-lg font-semibold text-gray-700 mb-4">Multiple Choice Questions</h3>
+                                                
+                                                <!-- Question Form -->
+                                                <div class="space-y-4 mb-4">
+                                                    <div>
+                                                        <label class="block text-xs font-medium text-gray-700 mb-1">Question</label>
+                                                        <textarea x-model="currentReadingQuestion.question" placeholder="Enter the question..." class="w-full border border-gray-300 rounded-lg p-2 h-20 resize-none text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"></textarea>
+                                                    </div>
+                                                    
+                                                    <div>
+                                                        <label class="block text-xs font-medium text-gray-700 mb-1">Option A</label>
+                                                        <input type="text" x-model="currentReadingQuestion.optionA" placeholder="Option A" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                                    </div>
+                                                    
+                                                    <div>
+                                                        <label class="block text-xs font-medium text-gray-700 mb-1">Option B</label>
+                                                        <input type="text" x-model="currentReadingQuestion.optionB" placeholder="Option B" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                                    </div>
+                                                    
+                                                    <div>
+                                                        <label class="block text-xs font-medium text-gray-700 mb-1">Option C</label>
+                                                        <input type="text" x-model="currentReadingQuestion.optionC" placeholder="Option C" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                                    </div>
+                                                    
+                                                    <div>
+                                                        <label class="block text-xs font-medium text-gray-700 mb-1">Option D</label>
+                                                        <input type="text" x-model="currentReadingQuestion.optionD" placeholder="Option D" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                                    </div>
+                                                    
+                                                    <div>
+                                                        <label class="block text-xs font-medium text-gray-700 mb-1">Correct Answer</label>
+                                                        <select x-model="currentReadingQuestion.correctAnswer" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                                            <option :value="1">A</option>
+                                                            <option :value="2">B</option>
+                                                            <option :value="3">C</option>
+                                                            <option :value="4">D</option>
+                                                        </select>
+                                                    </div>
+                                                    
+                                                    <div>
+                                                        <label class="block text-xs font-medium text-gray-700 mb-1">Tags</label>
+                                                        <input type="text" x-model="currentReadingQuestion.tags" placeholder="e.g., detail_recognition, Numbers" class="w-full border border-gray-300 rounded-lg p-2 text-sm">
+                                                    </div>
+                                                    
+                                                    <button @click="addReadingQuestion()" class="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition text-sm font-medium">
+                                                        Add Question
+                                                    </button>
+                                                </div>
+                                                
+                                                <!-- List of Added Questions -->
+                                                <div class="mt-6 border-t border-gray-300 pt-4">
+                                                    <h4 class="text-sm font-semibold text-gray-700 mb-3">Added Questions (<span x-text="readingQuestions.length"></span>)</h4>
+                                                    <div class="space-y-2 max-h-64 overflow-y-auto">
+                                                        <template x-for="(q, index) in readingQuestions" :key="q.id">
+                                                            <div class="bg-white border border-gray-200 rounded-lg p-3 text-xs">
+                                                                <div class="flex justify-between items-start mb-2">
+                                                                    <span class="font-medium text-gray-900" x-text="'Q' + (index + 1) + ': ' + (q.question.substring(0, 40) + (q.question.length > 40 ? '...' : ''))"></span>
+                                                                    <button @click="removeReadingQuestion(q.id)" class="text-red-600 hover:text-red-700" title="Remove">
+                                                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                                                                    </button>
+                                                                </div>
+                                                                <div class="text-gray-600" x-text="'Correct: ' + ['A', 'B', 'C', 'D'][q.correctAnswer - 1]"></div>
+                                                            </div>
+                                                        </template>
+                                                        <p x-show="readingQuestions.length === 0" class="text-xs text-gray-400 text-center py-4">No questions added yet</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Saved View (Full width after save) -->
+                                        <div x-show="readingExamSaved" class="lg:col-span-3">
+                                            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                                <!-- Reading Passage Display -->
+                                                <div class="lg:col-span-2">
+                                                    <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+                                                        <h3 class="text-lg font-bold text-gray-900 mb-4">Reading Passage</h3>
+                                                        <div class="prose max-w-none text-sm text-gray-700 whitespace-pre-wrap" x-text="readingPassage || 'No passage entered yet.'"></div>
+                                                    </div>
+                                                </div>
+                                                
+                                                <!-- Questions Display -->
+                                                <div class="lg:col-span-1">
+                                                    <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+                                                        <h3 class="text-lg font-bold text-gray-900 mb-4">Questions (<span x-text="readingQuestions.length"></span>)</h3>
+                                                        <div class="space-y-4">
+                                                            <template x-for="(q, index) in readingQuestions" :key="q.id">
+                                                                <div class="border border-gray-200 rounded-lg p-4">
+                                                                    <h4 class="text-sm font-semibold text-gray-900 mb-2" x-text="'Question ' + (index + 1)"></h4>
+                                                                    <p class="text-xs text-gray-700 mb-3" x-text="q.question"></p>
+                                                                    <div class="space-y-1 text-xs">
+                                                                        <div :class="q.correctAnswer == 1 ? 'text-blue-600 font-medium' : 'text-gray-600'" x-text="'A. ' + q.optionA"></div>
+                                                                        <div :class="q.correctAnswer == 2 ? 'text-blue-600 font-medium' : 'text-gray-600'" x-text="'B. ' + q.optionB"></div>
+                                                                        <div :class="q.correctAnswer == 3 ? 'text-blue-600 font-medium' : 'text-gray-600'" x-text="'C. ' + q.optionC"></div>
+                                                                        <div :class="q.correctAnswer == 4 ? 'text-blue-600 font-medium' : 'text-gray-600'" x-text="'D. ' + q.optionD"></div>
+                                                                    </div>
+                                                                    <div class="text-xs text-gray-500 mt-2" x-show="q.tags">
+                                                                        <span class="font-semibold">TAGS:</span> <span x-text="q.tags"></span>
+                                                                    </div>
+                                                                </div>
+                                                            </template>
+                                                            <p x-show="readingQuestions.length === 0" class="text-xs text-gray-400 text-center py-4">No questions added yet</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+                            
+                            <!-- Reading/Listening/Speaking Questions -->
+                            <!-- Listening Questions List -->
+                            <template x-if="mockExamSkill === 'listening' && listeningExamView === 'list'">
+                                <div>
+                                    <template x-for="(question, index) in getFilteredMockExamQuestions()" :key="'listening-' + index + '-' + (question.id || index)">
+                                        <div :data-exam-id="question.id" @click.stop="const examId = parseInt($el.getAttribute('data-exam-id')) || parseInt(question.id) || null; if (examId) { openListeningExamDetail(question, examId); } else { console.error('No ID found for question:', question); alert('Error: Exam ID not found'); }" class="bg-white rounded-lg border border-gray-200 overflow-hidden group hover:shadow-md transition mb-4 cursor-pointer">
+                                            <div class="flex gap-4 p-4">
+                                                <!-- Image Placeholder -->
+                                                <div class="flex-shrink-0">
+                                                    <div class="w-24 h-24 bg-purple-500 rounded-lg flex items-center justify-center overflow-hidden">
+                                                        <template x-if="question.image">
+                                                            <img :src="question.image" alt="Listening exam image" class="w-full h-full object-cover">
+                                                        </template>
+                                                        <template x-if="!question.image">
+                                                            <svg class="w-12 h-12 text-white opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
+                                                            </svg>
+                                                        </template>
+                                                    </div>
+                                                </div>
+                                                
+                                                <!-- Content -->
+                                                <div class="flex-1 flex flex-col justify-between min-w-0">
+                                                    <div>
+                                                        <h3 class="text-lg font-bold text-gray-900 mb-2" x-text="question.title || 'Listening exam ' + (index + 1)"></h3>
+                                                        <p class="text-sm text-gray-600 leading-relaxed line-clamp-3" x-text="question.prompt || question.description || 'No description available.'"></p>
+                                                    </div>
+                                                    
+                                                    <!-- Actions -->
+                                                    <div class="flex items-center gap-2 mt-3 opacity-0 group-hover:opacity-100 transition">
+                                                        <button :data-abel="JSON.stringify(question)" @click.stop="showModal = 'editAbel'; editItem = JSON.parse($el.dataset.abel); previewImage = question.image || null" class="text-blue-600 hover:text-blue-700 p-1.5 rounded hover:bg-blue-50 transition" title="Edit">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                                        </button>
+                                                        <form action="/admin/delete-abel" method="POST" onsubmit="return confirm('Delete this exam?');" class="inline">
+                                                            <input type="hidden" name="id" :value="question.id">
+                                                            <button type="submit" class="text-red-600 hover:text-red-700 p-1.5 rounded hover:bg-red-50 transition" title="Delete">
+                                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                            </button>
+                                                        </form>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+                            
+                            <!-- Listening Detail View -->
+                            <template x-if="mockExamSkill === 'listening' && listeningExamView === 'detail'">
+                                <div class="bg-white rounded-lg shadow-sm">
+                                    <!-- Header -->
+                                    <div class="flex items-center justify-between p-6 border-b border-gray-200">
+                                        <div class="flex items-center gap-4">
+                                            <button @click="closeListeningExamDetail()" class="text-gray-500 hover:text-gray-800 p-2 hover:bg-gray-100 rounded-full transition">
+                                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+                                            </button>
+                                            <div>
+                                                <h2 class="text-2xl font-bold text-gray-900">Listening</h2>
+                                                <p class="text-sm text-gray-500" x-text="selectedListeningExam?.title || 'Listening Exam'"></p>
+                                            </div>
+                                        </div>
+                                        <div class="flex items-center gap-3">
+                                            <button x-show="!listeningExamSaved" @click="saveListeningExam()" class="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 transition font-medium">
+                                                Save
+                                            </button>
+                                            <button x-show="listeningExamSaved" @click="listeningExamSaved = false" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition font-medium">
+                                                Edit
+                                            </button>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 p-6">
+                                        <!-- Audio & Script Editor (Left - 2 columns) -->
+                                        <div x-show="!listeningExamSaved" class="lg:col-span-2">
+                                            <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 min-h-[400px] bg-gray-50">
+                                                <h3 class="text-lg font-semibold text-gray-700 mb-4">Audio/Script Details</h3>
+                                                
+                                                <!-- Context/Narration Field -->
+                                                <div class="mb-6">
+                                                    <label class="block text-sm font-medium text-gray-700 mb-2">Context/Narration</label>
+                                                    <textarea x-model="listeningNarration" placeholder="This conversation is between a Customer and a Receptionist..." class="w-full border border-gray-300 rounded-lg p-3 h-32 resize-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"></textarea>
+                                                </div>
+                                                
+                                                <!-- Speaker Blocks -->
+                                                <div class="space-y-4">
+                                                    <div class="flex items-center justify-between mb-4">
+                                                        <h4 class="text-sm font-semibold text-gray-700">Speaker Script Definition</h4>
+                                                        <button @click="addListeningSpeaker()" class="text-sm bg-purple-600 text-white px-3 py-1.5 rounded-lg hover:bg-purple-700 transition">
+                                                            Add Next Speaker
+                                                        </button>
+                                                    </div>
+                                                    
+                                                    <template x-for="(speaker, index) in listeningSpeakers" :key="index">
+                                                        <div class="bg-white border border-gray-200 rounded-lg p-4">
+                                                            <div class="flex items-center justify-between mb-3">
+                                                                <div class="flex items-center gap-3">
+                                                                    <label class="text-sm font-medium text-gray-700" x-text="speaker.role"></label>
+                                                                </div>
+                                                                <button @click="removeListeningSpeaker(index)" class="text-red-600 hover:text-red-700 text-sm" :disabled="listeningSpeakers.length === 1" :class="listeningSpeakers.length === 1 ? 'opacity-50 cursor-not-allowed' : ''">
+                                                                    Remove
+                                                                </button>
+                                                            </div>
+                                                            
+                                                            <!-- Accent Dropdown -->
+                                                            <div class="mb-3">
+                                                                <label class="block text-xs font-medium text-gray-600 mb-1">Accent</label>
+                                                                <select x-model="speaker.accent" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500">
+                                                                    <option value="British">British</option>
+                                                                    <option value="American">American</option>
+                                                                    <option value="Australian">Australian</option>
+                                                                    <option value="Indian">Indian</option>
+                                                                    <option value="Scottish">Scottish</option>
+                                                                    <option value="Irish">Irish</option>
+                                                                </select>
+                                                            </div>
+                                                            
+                                                            <!-- Script Field -->
+                                                            <div>
+                                                                <label class="block text-xs font-medium text-gray-600 mb-1">Script</label>
+                                                                <textarea x-model="speaker.script" placeholder="Enter the dialogue for this speaker..." class="w-full border border-gray-300 rounded-lg p-3 h-32 resize-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"></textarea>
+                                                            </div>
+                                                        </div>
+                                                    </template>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Multiple Choice Questions Editor (Right - 1 column) -->
+                                        <div x-show="!listeningExamSaved" class="lg:col-span-1">
+                                            <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 bg-gray-50">
+                                                <h3 class="text-lg font-semibold text-gray-700 mb-4">Multiple Choice Questions (MCQ)</h3>
+                                                
+                                                <!-- Question Input Form -->
+                                                <div class="space-y-3">
+                                                    <div>
+                                                        <label class="block text-xs font-medium text-gray-700 mb-1">Question</label>
+                                                        <textarea x-model="currentListeningQuestion.question" placeholder="Enter question text..." class="w-full border border-gray-300 rounded-lg p-2 text-sm h-20 resize-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"></textarea>
+                                                    </div>
+                                                    
+                                                    <div>
+                                                        <label class="block text-xs font-medium text-gray-700 mb-1">Option A</label>
+                                                        <input type="text" x-model="currentListeningQuestion.optionA" placeholder="Option A" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500">
+                                                    </div>
+                                                    
+                                                    <div>
+                                                        <label class="block text-xs font-medium text-gray-700 mb-1">Option B</label>
+                                                        <input type="text" x-model="currentListeningQuestion.optionB" placeholder="Option B" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500">
+                                                    </div>
+                                                    
+                                                    <div>
+                                                        <label class="block text-xs font-medium text-gray-700 mb-1">Option C</label>
+                                                        <input type="text" x-model="currentListeningQuestion.optionC" placeholder="Option C" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500">
+                                                    </div>
+                                                    
+                                                    <div>
+                                                        <label class="block text-xs font-medium text-gray-700 mb-1">Option D</label>
+                                                        <input type="text" x-model="currentListeningQuestion.optionD" placeholder="Option D" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500">
+                                                    </div>
+                                                    
+                                                    <div>
+                                                        <label class="block text-xs font-medium text-gray-700 mb-1">Correct Answer</label>
+                                                        <select x-model="currentListeningQuestion.correctAnswer" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500">
+                                                            <option :value="1">A</option>
+                                                            <option :value="2">B</option>
+                                                            <option :value="3">C</option>
+                                                            <option :value="4">D</option>
+                                                        </select>
+                                                    </div>
+                                                    
+                                                    <div>
+                                                        <label class="block text-xs font-medium text-gray-700 mb-1">Tags</label>
+                                                        <input type="text" x-model="currentListeningQuestion.tags" placeholder="e.g., detail_recognition, Numbers" class="w-full border border-gray-300 rounded-lg p-2 text-sm">
+                                                    </div>
+                                                    
+                                                    <button @click="addListeningQuestion()" class="w-full bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition text-sm font-medium">
+                                                        Add Question
+                                                    </button>
+                                                </div>
+                                                
+                                                <!-- List of Added Questions -->
+                                                <div class="mt-6 border-t border-gray-300 pt-4">
+                                                    <h4 class="text-sm font-semibold text-gray-700 mb-3">Added Questions (<span x-text="listeningQuestions.length"></span>)</h4>
+                                                    <div class="space-y-2 max-h-64 overflow-y-auto custom-scroll">
+                                                        <template x-for="(q, index) in listeningQuestions" :key="q.id">
+                                                            <div class="bg-white border border-gray-200 rounded-lg p-3 flex items-start justify-between group">
+                                                                <div class="flex-1 min-w-0">
+                                                                    <p class="text-xs font-medium text-gray-900 mb-1">Q<span x-text="index + 1"></span>: <span x-text="q.question"></span></p>
+                                                                    <p class="text-xs text-gray-600">Correct: <span x-text="['A', 'B', 'C', 'D'][q.correctAnswer - 1]"></span></p>
+                                                                </div>
+                                                                <button @click="removeListeningQuestion(q.id)" class="text-red-600 hover:text-red-700 opacity-0 group-hover:opacity-100 transition ml-2">
+                                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                                </button>
+                                                            </div>
+                                                        </template>
+                                                        <p x-show="listeningQuestions.length === 0" class="text-xs text-gray-400 text-center py-4">No questions added yet</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Saved View (Full width after save) -->
+                                        <div x-show="listeningExamSaved" class="lg:col-span-3">
+                                            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                                <!-- Audio/Script Display -->
+                                                <div class="lg:col-span-2">
+                                                    <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+                                                        <h3 class="text-lg font-bold text-gray-900 mb-4">Audio/Script Details</h3>
+                                                        <div class="mb-6">
+                                                            <h4 class="text-sm font-semibold text-gray-700 mb-2">Context/Narration</h4>
+                                                            <p class="text-sm text-gray-700 whitespace-pre-wrap" x-text="listeningNarration || 'No narration entered yet.'"></p>
+                                                        </div>
+                                                        <div class="space-y-4">
+                                                            <template x-for="(speaker, index) in listeningSpeakers" :key="index">
+                                                                <div class="border border-gray-200 rounded-lg p-4">
+                                                                    <div class="flex items-center justify-between mb-2">
+                                                                        <h4 class="text-sm font-semibold text-gray-900" x-text="speaker.role"></h4>
+                                                                        <span class="text-xs text-gray-500" x-text="speaker.accent + ' accent'"></span>
+                                                                    </div>
+                                                                    <p class="text-sm text-gray-700 whitespace-pre-wrap" x-text="speaker.script || 'No script entered.'"></p>
+                                                                </div>
+                                                            </template>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                
+                                                <!-- Questions Display -->
+                                                <div class="lg:col-span-1">
+                                                    <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+                                                        <h3 class="text-lg font-bold text-gray-900 mb-4">Questions (<span x-text="listeningQuestions.length"></span>)</h3>
+                                                        <div class="space-y-4 max-h-96 overflow-y-auto custom-scroll">
+                                                            <template x-for="(q, index) in listeningQuestions" :key="q.id">
+                                                                <div class="border border-gray-200 rounded-lg p-4">
+                                                                    <p class="text-sm font-semibold text-gray-900 mb-2">Q<span x-text="index + 1"></span>: <span x-text="q.question"></span></p>
+                                                                    <div class="space-y-1 text-xs">
+                                                                        <p :class="q.correctAnswer === 1 ? 'text-green-600 font-semibold' : 'text-gray-600'">A. <span x-text="q.optionA"></span></p>
+                                                                        <p :class="q.correctAnswer === 2 ? 'text-green-600 font-semibold' : 'text-gray-600'">B. <span x-text="q.optionB"></span></p>
+                                                                        <p :class="q.correctAnswer === 3 ? 'text-green-600 font-semibold' : 'text-gray-600'">C. <span x-text="q.optionC"></span></p>
+                                                                        <p :class="q.correctAnswer === 4 ? 'text-green-600 font-semibold' : 'text-gray-600'">D. <span x-text="q.optionD"></span></p>
+                                                                    </div>
+                                                                    <p x-show="q.tags" class="text-xs text-gray-500 mt-2">Tags: <span x-text="q.tags"></span></p>
+                                                                </div>
+                                                            </template>
+                                                            <p x-show="listeningQuestions.length === 0" class="text-sm text-gray-400 text-center py-4">No questions added yet</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+                            
+                            <!-- Speaking Questions List -->
+                            <template x-if="mockExamSkill === 'speaking' && speakingExamView === 'list'">
+                                <div>
+                                    <template x-for="(question, index) in getFilteredMockExamQuestions()" :key="'speaking-' + index + '-' + (question.id || index)">
+                                        <div :data-exam-id="question.id" @click.stop="const examId = parseInt($el.getAttribute('data-exam-id')) || parseInt(question.id) || null; if (examId) { openSpeakingExamDetail(question, examId); } else { console.error('No ID found for question:', question); alert('Error: Exam ID not found'); }" class="bg-white rounded-lg border border-gray-200 overflow-hidden group hover:shadow-md transition mb-4 cursor-pointer">
+                                            <div class="flex gap-4 p-4">
+                                                <!-- Image Placeholder -->
+                                                <div class="flex-shrink-0">
+                                                    <div class="w-24 h-24 bg-orange-500 rounded-lg flex items-center justify-center overflow-hidden">
+                                                        <template x-if="question.image">
+                                                            <img :src="question.image" alt="Speaking exam image" class="w-full h-full object-cover">
+                                                        </template>
+                                                        <template x-if="!question.image">
+                                                            <svg class="w-12 h-12 text-white opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path>
+                                                            </svg>
+                                                        </template>
+                                                    </div>
+                                                </div>
+                                                
+                                                <!-- Content -->
+                                                <div class="flex-1 flex flex-col justify-between min-w-0">
+                                                    <div>
+                                                        <h3 class="text-lg font-bold text-gray-900 mb-2" x-text="question.title || 'Speaking exam ' + (index + 1)"></h3>
+                                                        <p class="text-sm text-gray-600 leading-relaxed line-clamp-3" x-text="question.prompt || question.description || 'No description available.'"></p>
+                                                    </div>
+                                                    
+                                                    <!-- Actions -->
+                                                    <div class="flex items-center gap-2 mt-3 opacity-0 group-hover:opacity-100 transition">
+                                                        <button :data-abel="JSON.stringify(question)" @click.stop="showModal = 'editAbel'; editItem = JSON.parse($el.dataset.abel); previewImage = question.image || null" class="text-blue-600 hover:text-blue-700 p-1.5 rounded hover:bg-blue-50 transition" title="Edit">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                                        </button>
+                                                        <form action="/admin/delete-abel" method="POST" onsubmit="return confirm('Delete this exam?');" class="inline">
+                                                            <input type="hidden" name="id" :value="question.id">
+                                                            <button type="submit" class="text-red-600 hover:text-red-700 p-1.5 rounded hover:bg-red-50 transition" title="Delete">
+                                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                            </button>
+                                                        </form>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+                            
+                            <!-- Speaking Detail View -->
+                            <template x-if="mockExamSkill === 'speaking' && speakingExamView === 'detail'">
+                                <div class="bg-white rounded-lg shadow-sm">
+                                    <!-- Header -->
+                                    <div class="flex items-center justify-between p-6 border-b border-gray-200">
+                                        <div class="flex items-center gap-4">
+                                            <button @click="closeSpeakingExamDetail()" class="text-gray-500 hover:text-gray-800 p-2 hover:bg-gray-100 rounded-full transition">
+                                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+                                            </button>
+                                            <div>
+                                                <h2 class="text-2xl font-bold text-gray-900">Speaking</h2>
+                                                <p class="text-sm text-gray-500" x-text="selectedSpeakingExam?.title || 'Speaking Exam'"></p>
+                                            </div>
+                                        </div>
+                                        <div class="flex items-center gap-3">
+                                            <button x-show="!speakingExamSaved" @click="saveSpeakingExam()" class="bg-orange-600 text-white px-6 py-2 rounded-lg hover:bg-orange-700 transition font-medium">
+                                                Save
+                                            </button>
+                                            <button x-show="speakingExamSaved" @click="speakingExamSaved = false" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition font-medium">
+                                                Edit
+                                            </button>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 p-6">
+                                        <!-- Left Card: Module Content / Examiner Instructions -->
+                                        <div x-show="!speakingExamSaved" class="lg:col-span-1">
+                                            <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 min-h-[500px] bg-gray-50">
+                                                <h3 class="text-lg font-semibold text-gray-700 mb-4">Module Content / Examiner Instructions</h3>
+                                                <p class="text-sm text-gray-500 mb-4">Write the introduction script or general exam guidelines that the examiner will read.</p>
+                                                
+                                                <!-- Rich Text Editor (Simple textarea for now, can be enhanced with WYSIWYG) -->
+                                                <div>
+                                                    <label class="block text-sm font-medium text-gray-700 mb-2">Content</label>
+                                                    <textarea x-model="speakingModuleContent" placeholder="In this section, I will ask you some general questions about yourself..." class="w-full border border-gray-300 rounded-lg p-3 h-96 resize-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"></textarea>
+                                                </div>
+                                                
+                                                <!-- Preview Section -->
+                                                <div class="mt-4 border-t border-gray-300 pt-4">
+                                                    <h4 class="text-sm font-semibold text-gray-700 mb-2">Preview</h4>
+                                                    <div class="bg-white border border-gray-200 rounded-lg p-4 min-h-[100px] max-h-48 overflow-y-auto">
+                                                        <p class="text-sm text-gray-700 whitespace-pre-wrap" x-text="speakingModuleContent || 'No content entered yet. Preview will appear here.'"></p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Right Card: Question Bank (Parts 1-3) -->
+                                        <div x-show="!speakingExamSaved" class="lg:col-span-1">
+                                            <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 bg-gray-50 min-h-[500px]">
+                                                <h3 class="text-lg font-semibold text-gray-700 mb-4">Question Bank</h3>
+                                                
+                                                <!-- Part Selector (Tabs) -->
+                                                <div class="mb-4">
+                                                    <div class="flex border-b border-gray-300">
+                                                        <button @click="speakingCurrentPart = 1" :class="speakingCurrentPart === 1 ? 'border-b-2 border-orange-500 text-orange-600 font-semibold' : 'text-gray-600 hover:text-gray-800'" class="px-4 py-2 text-sm transition">
+                                                            Part 1 (Introduction)
+                                                        </button>
+                                                        <button @click="speakingCurrentPart = 2" :class="speakingCurrentPart === 2 ? 'border-b-2 border-orange-500 text-orange-600 font-semibold' : 'text-gray-600 hover:text-gray-800'" class="px-4 py-2 text-sm transition">
+                                                            Part 2 (Cue Card)
+                                                        </button>
+                                                        <button @click="speakingCurrentPart = 3" :class="speakingCurrentPart === 3 ? 'border-b-2 border-orange-500 text-orange-600 font-semibold' : 'text-gray-600 hover:text-gray-800'" class="px-4 py-2 text-sm transition">
+                                                            Part 3 (Discussion)
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                
+                                                <!-- Question Input Area -->
+                                                <div class="mb-6 space-y-3">
+                                                    <div>
+                                                        <label class="block text-xs font-medium text-gray-700 mb-1">Question Prompt</label>
+                                                        <textarea x-model="currentSpeakingQuestion.question" placeholder="e.g., Tell me about your hometown." class="w-full border border-gray-300 rounded-lg p-2 text-sm h-24 resize-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"></textarea>
+                                                    </div>
+                                                    
+                                                    <div>
+                                                        <label class="block text-xs font-medium text-gray-700 mb-1">Tags</label>
+                                                        <input type="text" x-model="currentSpeakingQuestion.tags" placeholder="e.g., #hometown, #intro, #easy" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500">
+                                                    </div>
+                                                    
+                                                    <button @click="addSpeakingQuestion()" class="w-full bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 transition text-sm font-medium">
+                                                        Add Prompt
+                                                    </button>
+                                                </div>
+                                                
+                                                <!-- Active Question List (Grouped by Part) -->
+                                                <div class="border-t border-gray-300 pt-4">
+                                                    <h4 class="text-sm font-semibold text-gray-700 mb-3">Active Questions</h4>
+                                                    <div class="space-y-4 max-h-96 overflow-y-auto custom-scroll">
+                                                        <!-- Part 1 Questions -->
+                                                        <div x-show="speakingQuestions.part1.length > 0">
+                                                            <h5 class="text-xs font-bold text-gray-600 mb-2 uppercase">Part 1 (Introduction)</h5>
+                                                            <div class="space-y-2">
+                                                                <template x-for="(q, index) in speakingQuestions.part1" :key="q.id">
+                                                                    <div class="bg-white border border-gray-200 rounded-lg p-3 flex items-start justify-between group">
+                                                                        <div class="flex-1 min-w-0">
+                                                                            <p class="text-xs font-medium text-gray-900">Q<span x-text="index + 1"></span>: <span x-text="q.question"></span></p>
+                                                                            <p x-show="q.tags" class="text-xs text-gray-500 mt-1">Tags: <span x-text="q.tags"></span></p>
+                                                                        </div>
+                                                                        <div class="flex items-center gap-2 ml-2">
+                                                                            <button @click="editSpeakingQuestion(1, q.id)" class="text-blue-600 hover:text-blue-700 opacity-0 group-hover:opacity-100 transition text-xs">
+                                                                                Edit
+                                                                            </button>
+                                                                            <button @click="removeSpeakingQuestion(1, q.id)" class="text-red-600 hover:text-red-700 opacity-0 group-hover:opacity-100 transition text-xs">
+                                                                                Delete
+                                                                            </button>
+                                                                        </div>
+                                                                    </div>
+                                                                </template>
+                                                            </div>
+                                                        </div>
+                                                        
+                                                        <!-- Part 2 Questions -->
+                                                        <div x-show="speakingQuestions.part2.length > 0">
+                                                            <h5 class="text-xs font-bold text-gray-600 mb-2 uppercase">Part 2 (Cue Card)</h5>
+                                                            <div class="space-y-2">
+                                                                <template x-for="(q, index) in speakingQuestions.part2" :key="q.id">
+                                                                    <div class="bg-white border border-gray-200 rounded-lg p-3 flex items-start justify-between group">
+                                                                        <div class="flex-1 min-w-0">
+                                                                            <p class="text-xs font-medium text-gray-900">Q<span x-text="index + 1"></span>: <span x-text="q.question"></span></p>
+                                                                            <p x-show="q.tags" class="text-xs text-gray-500 mt-1">Tags: <span x-text="q.tags"></span></p>
+                                                                        </div>
+                                                                        <div class="flex items-center gap-2 ml-2">
+                                                                            <button @click="editSpeakingQuestion(2, q.id)" class="text-blue-600 hover:text-blue-700 opacity-0 group-hover:opacity-100 transition text-xs">
+                                                                                Edit
+                                                                            </button>
+                                                                            <button @click="removeSpeakingQuestion(2, q.id)" class="text-red-600 hover:text-red-700 opacity-0 group-hover:opacity-100 transition text-xs">
+                                                                                Delete
+                                                                            </button>
+                                                                        </div>
+                                                                    </div>
+                                                                </template>
+                                                            </div>
+                                                        </div>
+                                                        
+                                                        <!-- Part 3 Questions -->
+                                                        <div x-show="speakingQuestions.part3.length > 0">
+                                                            <h5 class="text-xs font-bold text-gray-600 mb-2 uppercase">Part 3 (Discussion)</h5>
+                                                            <div class="space-y-2">
+                                                                <template x-for="(q, index) in speakingQuestions.part3" :key="q.id">
+                                                                    <div class="bg-white border border-gray-200 rounded-lg p-3 flex items-start justify-between group">
+                                                                        <div class="flex-1 min-w-0">
+                                                                            <p class="text-xs font-medium text-gray-900">Q<span x-text="index + 1"></span>: <span x-text="q.question"></span></p>
+                                                                            <p x-show="q.tags" class="text-xs text-gray-500 mt-1">Tags: <span x-text="q.tags"></span></p>
+                                                                        </div>
+                                                                        <div class="flex items-center gap-2 ml-2">
+                                                                            <button @click="editSpeakingQuestion(3, q.id)" class="text-blue-600 hover:text-blue-700 opacity-0 group-hover:opacity-100 transition text-xs">
+                                                                                Edit
+                                                                            </button>
+                                                                            <button @click="removeSpeakingQuestion(3, q.id)" class="text-red-600 hover:text-red-700 opacity-0 group-hover:opacity-100 transition text-xs">
+                                                                                Delete
+                                                                            </button>
+                                                                        </div>
+                                                                    </div>
+                                                                </template>
+                                                            </div>
+                                                        </div>
+                                                        
+                                                        <p x-show="speakingQuestions.part1.length === 0 && speakingQuestions.part2.length === 0 && speakingQuestions.part3.length === 0" class="text-xs text-gray-400 text-center py-4">No questions added yet. Select a part and add your first question.</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Saved View (Full width after save) -->
+                                        <div x-show="speakingExamSaved" class="lg:col-span-2">
+                                            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                                <!-- Module Content Display -->
+                                                <div>
+                                                    <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+                                                        <h3 class="text-lg font-bold text-gray-900 mb-4">Module Content / Examiner Instructions</h3>
+                                                        <div class="prose max-w-none text-sm text-gray-700 whitespace-pre-wrap" x-text="speakingModuleContent || 'No content entered yet.'"></div>
+                                                    </div>
+                                                </div>
+                                                
+                                                <!-- Questions Display (Grouped by Part) -->
+                                                <div>
+                                                    <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+                                                        <h3 class="text-lg font-bold text-gray-900 mb-4">Question Bank</h3>
+                                                        <div class="space-y-6 max-h-96 overflow-y-auto custom-scroll">
+                                                            <!-- Part 1 -->
+                                                            <div x-show="speakingQuestions.part1.length > 0">
+                                                                <h4 class="text-sm font-bold text-gray-700 mb-3 uppercase">Part 1 (Introduction)</h4>
+                                                                <div class="space-y-2">
+                                                                    <template x-for="(q, index) in speakingQuestions.part1" :key="q.id">
+                                                                        <div class="border border-gray-200 rounded-lg p-3">
+                                                                            <p class="text-sm font-semibold text-gray-900">Q<span x-text="index + 1"></span>: <span x-text="q.question"></span></p>
+                                                                            <p x-show="q.tags" class="text-xs text-gray-500 mt-1">Tags: <span x-text="q.tags"></span></p>
+                                                                        </div>
+                                                                    </template>
+                                                                </div>
+                                                            </div>
+                                                            
+                                                            <!-- Part 2 -->
+                                                            <div x-show="speakingQuestions.part2.length > 0">
+                                                                <h4 class="text-sm font-bold text-gray-700 mb-3 uppercase">Part 2 (Cue Card)</h4>
+                                                                <div class="space-y-2">
+                                                                    <template x-for="(q, index) in speakingQuestions.part2" :key="q.id">
+                                                                        <div class="border border-gray-200 rounded-lg p-3">
+                                                                            <p class="text-sm font-semibold text-gray-900">Q<span x-text="index + 1"></span>: <span x-text="q.question"></span></p>
+                                                                            <p x-show="q.tags" class="text-xs text-gray-500 mt-1">Tags: <span x-text="q.tags"></span></p>
+                                                                        </div>
+                                                                    </template>
+                                                                </div>
+                                                            </div>
+                                                            
+                                                            <!-- Part 3 -->
+                                                            <div x-show="speakingQuestions.part3.length > 0">
+                                                                <h4 class="text-sm font-bold text-gray-700 mb-3 uppercase">Part 3 (Discussion)</h4>
+                                                                <div class="space-y-2">
+                                                                    <template x-for="(q, index) in speakingQuestions.part3" :key="q.id">
+                                                                        <div class="border border-gray-200 rounded-lg p-3">
+                                                                            <p class="text-sm font-semibold text-gray-900">Q<span x-text="index + 1"></span>: <span x-text="q.question"></span></p>
+                                                                            <p x-show="q.tags" class="text-xs text-gray-500 mt-1">Tags: <span x-text="q.tags"></span></p>
+                                                                        </div>
+                                                                    </template>
+                                                                </div>
+                                                            </div>
+                                                            
+                                                            <p x-show="speakingQuestions.part1.length === 0 && speakingQuestions.part2.length === 0 && speakingQuestions.part3.length === 0" class="text-sm text-gray-400 text-center py-4">No questions added yet</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+                            
+                            <template x-if="mockExamSkill !== 'writing' && mockExamSkill !== 'reading' && mockExamSkill !== 'listening' && mockExamSkill !== 'speaking'">
+                                <template x-for="(question, index) in getFilteredMockExamQuestions()" :key="'other-' + question.id">
                                 <!-- Reading/Listening Questions (most common) -->
                                 <div x-show="question.type === 'Reading' || question.type === 'Listening'" class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden group hover:shadow-md transition">
                                     <div class="p-6">
@@ -1236,48 +2881,6 @@
                                     </div>
                                 </div>
                                 
-                                <!-- Writing Question Card -->
-                                <div x-show="question.type === 'Writing'">
-                                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden group hover:shadow-md transition">
-                                        <div class="p-6">
-                                            <div class="flex justify-between items-start mb-4">
-                                                <h3 class="text-xl font-bold text-gray-900">
-                                                    <span>Writing</span>
-                                                    <span class="text-gray-500 font-normal text-lg">Task 1</span>
-                                                </h3>
-                                                <div class="flex items-center gap-2 opacity-80 group-hover:opacity-100 transition">
-                                                    <button :data-abel="JSON.stringify(question)" @click="showModal = 'editAbel'; editItem = JSON.parse($el.dataset.abel); previewImage = question.image || null" class="text-blue-500 hover:text-blue-700 p-2 rounded-full hover:bg-blue-50 transition" title="Edit">
-                                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-                                                    </button>
-                                                    <form action="/admin/delete-abel" method="POST" onsubmit="return confirm('Delete this item?');">
-                                                        <input type="hidden" name="id" :value="question.id">
-                                                        <button type="submit" class="text-red-500 hover:text-red-700 p-2 rounded-full hover:bg-red-50 transition">
-                                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                                                        </button>
-                                                    </form>
-                                                </div>
-                                            </div>
-                                            
-                                            <div class="mb-4">
-                                                <div class="w-full rounded-lg overflow-hidden bg-gray-100">
-                                                    <template x-if="question.image">
-                                                        <img :src="question.image" alt="Writing prompt image" class="w-full h-auto object-cover">
-                                                    </template>
-                                                    <template x-if="!question.image">
-                                                        <div class="w-full h-64 flex items-center justify-center">
-                                                            <p class="text-gray-400 text-sm">No image available</p>
-                                                        </div>
-                                                    </template>
-                                                </div>
-                                            </div>
-                                            
-                                            <div>
-                                                <p class="text-sm text-gray-600 leading-relaxed" x-text="question.prompt || question.description || 'No description available.'"></p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                
                                 <!-- Speaking Question Card -->
                                 <div x-show="question.type === 'Speaking'">
                                     <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden group hover:shadow-md transition mb-4">
@@ -1333,12 +2936,17 @@
                                     </div>
                                 </template>
                             </template>
+                            
+                            <!-- Empty State -->
                             <div x-show="getFilteredMockExamQuestions().length === 0" class="text-center py-12 border border-dashed border-gray-300 rounded-lg bg-gray-50">
                                 <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-purple-50 mb-4">
                                     <svg class="w-8 h-8 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
                                 </div>
-                                <h3 class="text-lg font-medium text-gray-900">No questions yet</h3>
-                                <p class="text-gray-500 max-w-sm mx-auto mt-1">Click "+ Add Question" to create your first <span x-text="mockExamSkill" class="font-semibold"></span> question.</p>
+                                <h3 class="text-lg font-medium text-gray-900" x-text="mockExamSkill === 'writing' ? 'No exams yet' : 'No questions yet'"></h3>
+                                <p class="text-gray-500 max-w-sm mx-auto mt-1">
+                                    <span x-show="mockExamSkill === 'writing'">Click "Add Exam" to create your first writing exam.</span>
+                                    <span x-show="mockExamSkill !== 'writing'">Click "+ Add Question" to create your first <span x-text="mockExamSkill" class="font-semibold"></span> question.</span>
+                                </p>
                             </div>
                         </div>
                     </div>
@@ -1430,7 +3038,7 @@
     <!-- Add ABEL -->
     <div x-show="showModal === 'addAbel'" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" x-cloak>
         <div class="bg-white rounded-xl p-6 w-full max-w-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
-            <h3 class="text-xl font-bold mb-4 text-purple-800">Add Question</h3>
+            <h3 class="text-xl font-bold mb-4 text-purple-800" x-text="(editItem.type === 'Writing' || editItem.type === 'Reading' || editItem.type === 'Listening' || editItem.type === 'Speaking') ? 'Create New Exam' : 'Add Question'"></h3>
             
             <!-- Writing Interface -->
             <template x-if="editItem.type === 'Writing'">
@@ -1438,6 +3046,16 @@
                     <input type="hidden" name="type" value="Writing">
                     <input type="hidden" name="difficulty" value="Standard">
                     <input type="hidden" name="taskNumber" value="1">
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Title</label>
+                        <input type="text" name="title" placeholder="e.g., Writing exam 1" required class="w-full border p-3 rounded" x-model="editItem.title">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                        <textarea name="prompt" placeholder="Enter the task description..." required class="w-full border p-3 rounded h-32" x-model="editItem.prompt"></textarea>
+                    </div>
                     
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">Upload Image (Optional)</label>
@@ -1464,9 +3082,27 @@
                         </div>
                     </div>
                     
+                    <div class="flex justify-end gap-2 pt-4">
+                        <button type="button" @click="showModal = false; editItem = {}; previewImage = null" class="px-4 py-2 border rounded">Cancel</button>
+                        <button type="submit" class="px-4 py-2 bg-purple-600 text-white rounded">Save</button>
+                    </div>
+                </form>
+            </template>
+            
+            <!-- Reading Interface (Title and Description only) -->
+            <template x-if="editItem.type === 'Reading'">
+                <form action="/admin/add-abel" method="POST" enctype="multipart/form-data" class="space-y-6">
+                    <input type="hidden" name="type" value="Reading">
+                    <input type="hidden" name="difficulty" value="Standard">
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Title</label>
+                        <input type="text" name="title" placeholder="e.g., Reading exam 1" required class="w-full border p-3 rounded" x-model="editItem.title">
+                    </div>
+                    
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">Description</label>
-                        <textarea name="prompt" placeholder="Enter the task description..." required class="w-full border p-3 rounded h-32" x-model="editItem.prompt"></textarea>
+                        <textarea name="prompt" placeholder="Enter the reading passage description..." required class="w-full border p-3 rounded h-32" x-model="editItem.prompt"></textarea>
                     </div>
                     
                     <div class="flex justify-end gap-2 pt-4">
@@ -1476,79 +3112,51 @@
                 </form>
             </template>
             
-            <!-- Reading/Listening Interface -->
-            <template x-if="editItem.type === 'Reading' || editItem.type === 'Listening'">
-                <form action="/admin/add-abel" method="POST" class="space-y-6">
-                    <input type="hidden" name="type" :value="editItem.type">
+            <!-- Listening Interface (Title and Description only for creating new exam) -->
+            <template x-if="editItem.type === 'Listening'">
+                <form action="/admin/add-abel" method="POST" enctype="multipart/form-data" class="space-y-6">
+                    <input type="hidden" name="type" value="Listening">
                     <input type="hidden" name="difficulty" value="Standard">
                     
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Question</label>
-                        <textarea name="prompt" placeholder="Enter the question..." required class="w-full border p-3 rounded h-24" x-model="editItem.prompt"></textarea>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Title</label>
+                        <input type="text" name="title" placeholder="e.g., IELTS Practice Test 4" required class="w-full border p-3 rounded" x-model="editItem.title">
                     </div>
                     
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Option A</label>
-                        <input type="text" name="optionA" placeholder="Enter option A" required class="w-full border p-3 rounded" x-model="editItem.optionA">
-                    </div>
-                    
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Option B</label>
-                        <input type="text" name="optionB" placeholder="Enter option B" required class="w-full border p-3 rounded" x-model="editItem.optionB">
-                    </div>
-                    
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Option C</label>
-                        <input type="text" name="optionC" placeholder="Enter option C" required class="w-full border p-3 rounded" x-model="editItem.optionC">
-                    </div>
-                    
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Option D</label>
-                        <input type="text" name="optionD" placeholder="Enter option D" required class="w-full border p-3 rounded" x-model="editItem.optionD">
-                    </div>
-                    
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Correct Answer</label>
-                        <select name="correctAnswer" x-model="editItem.correctAnswer" required class="w-full border p-3 rounded">
-                            <option value="">Select correct answer</option>
-                            <option value="1">A</option>
-                            <option value="2">B</option>
-                            <option value="3">C</option>
-                            <option value="4">D</option>
-                        </select>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                        <textarea name="prompt" placeholder="Enter a brief summary of the exam difficulty or topic..." required class="w-full border p-3 rounded h-32" x-model="editItem.prompt"></textarea>
                     </div>
                     
                     <div class="flex justify-end gap-2 pt-4">
-                        <button type="button" @click="showModal = false; editItem = {}" class="px-4 py-2 border rounded">Cancel</button>
-                        <button type="submit" class="px-4 py-2 bg-purple-600 text-white rounded">Save</button>
+                        <button type="button" @click="showModal = false; editItem = {}; previewImage = null" class="px-4 py-2 border rounded">Cancel</button>
+                        <button type="submit" class="px-4 py-2 bg-purple-600 text-white rounded">Create</button>
                     </div>
                 </form>
             </template>
             
-            <!-- Speaking Interface -->
+            <!-- Speaking Interface (Title and Description only for creating new exam) -->
             <template x-if="editItem.type === 'Speaking'">
-                <form action="/admin/add-abel" method="POST" class="space-y-6">
+                <form action="/admin/add-abel" method="POST" enctype="multipart/form-data" class="space-y-6">
                     <input type="hidden" name="type" value="Speaking">
                     <input type="hidden" name="difficulty" value="Standard">
                     
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Part</label>
-                        <select name="part" x-model="editItem.part" required class="w-full border p-3 rounded">
-                            <option value="">Select Part</option>
-                            <option value="1">Part 1: Introduction and Interview</option>
-                            <option value="2">Part 2: Long Turn</option>
-                            <option value="3">Part 3: Discussion</option>
-                        </select>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Title</label>
+                        <input type="text" name="title" placeholder="e.g., Speaking Test 5: Travel & Home" required class="w-full border p-3 rounded" x-model="editItem.title">
                     </div>
                     
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Question Number</label>
-                        <select name="questionNumber" x-model="editItem.questionNumber" required class="w-full border p-3 rounded">
-                            <option value="">Select Question</option>
-                            <option value="1">Question 1</option>
-                            <option value="2">Question 2</option>
-                        </select>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                        <textarea name="prompt" placeholder="e.g., Focuses on tourism vocabulary and past tense." required class="w-full border p-3 rounded h-32" x-model="editItem.prompt"></textarea>
                     </div>
+                    
+                    <div class="flex justify-end gap-2 pt-4">
+                        <button type="button" @click="showModal = false; editItem = {}; previewImage = null" class="px-4 py-2 border rounded">Cancel</button>
+                        <button type="submit" class="px-4 py-2 bg-orange-600 text-white rounded">Create</button>
+                    </div>
+                </form>
+            </template>
                     
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">Question</label>
@@ -1578,6 +3186,16 @@
                     <input type="hidden" name="taskNumber" value="1">
                     
                     <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Title</label>
+                        <input type="text" name="title" placeholder="e.g., Writing exam 1" required class="w-full border p-3 rounded" x-model="editItem.title">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                        <textarea name="prompt" placeholder="Enter the task description..." required class="w-full border p-3 rounded h-32" x-model="editItem.prompt"></textarea>
+                    </div>
+                    
+                    <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">Upload Image (Optional)</label>
                         <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md bg-gray-50">
                             <div class="space-y-1 text-center w-full">
@@ -1600,11 +3218,6 @@
                                 </div>
                             </div>
                         </div>
-                    </div>
-                    
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Description</label>
-                        <textarea name="prompt" placeholder="Enter the task description..." required class="w-full border p-3 rounded h-32" x-model="editItem.prompt"></textarea>
                     </div>
                     
                     <div class="flex justify-end gap-2 pt-4">
@@ -1704,83 +3317,53 @@
         </div>
     </div>
 
-    <!-- Add Module Question Modal -->
-    <div x-show="showModal === 'addModuleQuestion'" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" x-cloak>
-        <div class="bg-white rounded-xl p-6 w-full max-w-md shadow-2xl">
-            <h3 class="text-xl font-bold mb-4 text-blue-800">Add Content to Module</h3>
-            <form @submit.prevent="addModuleQuestion" class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">Question / Description</label>
-                    <textarea id="mq-desc" placeholder="Enter content description..." required class="w-full border p-2 rounded h-24"></textarea>
-                </div>
-                
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">Upload Image (Optional)</label>
-                    <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
-                        <div class="space-y-1 text-center">
-                            <div x-show="!previewImage">
-                                <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48"><path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>
-                                <div class="flex text-sm text-gray-600">
-                                    <label class="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none">
-                                        <span>Upload a file</span>
-                                        <input type="file" class="sr-only" @change="handleFileUpload">
-                                    </label>
+    <!-- Writing Exam Preview Modal -->
+    <div x-show="showModal === 'writingExamPreview'" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" x-cloak>
+        <div class="bg-white rounded-xl p-6 w-full max-w-4xl shadow-2xl max-h-[90vh] overflow-y-auto">
+            <h3 class="text-2xl font-bold mb-6 text-gray-900">Preview Writing Exam</h3>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <!-- Writing Task 1 Preview -->
+                <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+                    <h4 class="text-lg font-bold text-gray-900 mb-4">Writing Task 1</h4>
+                    <div class="bg-gray-200 rounded-lg h-40 flex items-center justify-center mb-4 overflow-hidden">
+                        <template x-if="writingTask1.previewImage || writingTask1.image">
+                            <img :src="writingTask1.previewImage || writingTask1.image" alt="Writing Task 1" class="w-full h-full object-cover">
+                        </template>
+                        <template x-if="!writingTask1.previewImage && !writingTask1.image">
+                            <span class="text-gray-500 text-lg font-medium">Writing Task 1</span>
+                        </template>
                                 </div>
-                            </div>
-                            <div x-show="previewImage" class="relative">
-                                <img :src="previewImage" class="max-h-48 mx-auto rounded-md shadow-sm">
-                                <button type="button" @click="previewImage = null" class="absolute top-0 right-0 bg-red-500 text-white rounded-full p-1 -mt-2 -mr-2 shadow-sm hover:bg-red-600">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                                </button>
-                            </div>
-                        </div>
+                    <p class="text-sm text-gray-700 leading-relaxed mb-3" x-text="writingTask1.description || 'No description entered yet.'"></p>
+                    <div class="text-xs text-gray-500" x-show="writingTask1.tags">
+                        <span class="font-semibold">TAGS:</span> <span x-text="writingTask1.tags"></span>
                     </div>
                 </div>
 
-                <div class="flex justify-end gap-2">
-                    <button type="button" @click="showModal = false" class="px-4 py-2 border rounded">Cancel</button>
-                    <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded">Save Content</button>
+                <!-- Writing Task 2 Preview -->
+                <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+                    <h4 class="text-lg font-bold text-gray-900 mb-4">Writing Task 2</h4>
+                    <div class="bg-gray-200 rounded-lg h-40 flex items-center justify-center mb-4 overflow-hidden">
+                        <template x-if="writingTask2.previewImage || writingTask2.image">
+                            <img :src="writingTask2.previewImage || writingTask2.image" alt="Writing Task 2" class="w-full h-full object-cover">
+                        </template>
+                        <template x-if="!writingTask2.previewImage && !writingTask2.image">
+                            <span class="text-gray-500 text-lg font-medium">Writing Task 2</span>
+                        </template>
                 </div>
-            </form>
+                    <p class="text-sm text-gray-700 leading-relaxed mb-3" x-text="writingTask2.description || 'No description entered yet.'"></p>
+                    <div class="text-xs text-gray-500" x-show="writingTask2.tags">
+                        <span class="font-semibold">TAGS:</span> <span x-text="writingTask2.tags"></span>
         </div>
     </div>
 
-    <!-- Edit Module Question Modal -->
-    <div x-show="showModal === 'editModuleQuestion'" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" x-cloak>
-        <div class="bg-white rounded-xl p-6 w-full max-w-md shadow-2xl">
-            <h3 class="text-xl font-bold mb-4 text-blue-800">Edit Module Content</h3>
-            <form @submit.prevent="updateModuleQuestion" class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">Question / Description</label>
-                    <textarea x-model="editItem.description" required class="w-full border p-2 rounded h-24"></textarea>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">Upload Image (Optional)</label>
-                    <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
-                        <div class="space-y-1 text-center">
-                            <div x-show="!previewImage">
-                                <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48"><path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>
-                                <div class="flex text-sm text-gray-600">
-                                    <label class="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none">
-                                        <span>Upload a file</span>
-                                        <input type="file" class="sr-only" @change="handleFileUpload" required>
-                                    </label>
-                                </div>
-                            </div>
-                            <div x-show="previewImage" class="relative">
-                                <img :src="previewImage" class="max-h-48 mx-auto rounded-md shadow-sm">
-                                <button type="button" @click="previewImage = null" class="absolute top-0 right-0 bg-red-500 text-white rounded-full p-1 -mt-2 -mr-2 shadow-sm hover:bg-red-600">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            <div class="flex justify-end gap-3 pt-4 border-t border-gray-200">
+                <button @click="showModal = false" class="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition">Cancel</button>
+                <button @click="confirmWritingExamSave()" class="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition flex items-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                    Confirm & Save
                                 </button>
                             </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="flex justify-end gap-2">
-                    <button type="button" @click="showModal = false" class="px-4 py-2 border rounded">Cancel</button>
-                    <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded">Update Content</button>
-                </div>
-            </form>
         </div>
     </div>
 

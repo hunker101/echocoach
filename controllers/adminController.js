@@ -112,14 +112,7 @@ const adminController = {
         res.redirect('/admin/manage?tab=modules'); 
     },
 
-    // NEW: Add Question to Module Test Bank (Redirects to new tab)
-    addModuleQuestion: (req, res) => {
-        // In a real app, you'd save to a specific module's question list
-        console.log("Added Question to Module Test Bank:", req.body);
-        res.redirect('/admin/manage?tab=moduletestbank'); 
-    },
-
-    // --- General Test Bank Management ---
+    // --- Regular User Test Bank Management ---
     addAssessment: (req, res) => {
         db.assessments.push({ id: Date.now(), category: req.body.category, question: req.body.question });
         res.redirect('/admin/manage?tab=testbank');
@@ -155,6 +148,7 @@ const adminController = {
         // Handle Writing questions
         if (req.body.type === 'Writing') {
             newQuestion.taskNumber = parseInt(req.body.taskNumber) || 1;
+            newQuestion.title = req.body.title || '';
             // Handle uploaded image file
             if (req.file) {
                 newQuestion.image = '/uploads/' + req.file.filename;
@@ -203,6 +197,7 @@ const adminController = {
             // Handle Writing questions
             if (req.body.type === 'Writing') {
                 updated.taskNumber = parseInt(req.body.taskNumber) || 1;
+                updated.title = req.body.title || existing.title || '';
                 // Handle uploaded image file - if new file uploaded, use it; otherwise keep existing
                 if (req.file) {
                     updated.image = '/uploads/' + req.file.filename;
@@ -249,6 +244,329 @@ const adminController = {
         // Preserve the skill view in redirect
         const skillType = question && question.type ? question.type.toLowerCase() : '';
         res.redirect(`/admin/manage?tab=abel&skill=${skillType}`);
+    },
+    
+    // Save Writing Exam Details (Task 1 and Task 2)
+    saveWritingExam: (req, res) => {
+        try {
+            const index = db.finalAssessments.findIndex(a => a.id == req.body.id);
+            if (index > -1) {
+                const exam = db.finalAssessments[index];
+                
+                // Handle task1 image
+                let task1Image = null;
+                if (req.files && req.files.task1Image && req.files.task1Image[0]) {
+                    task1Image = '/uploads/' + req.files.task1Image[0].filename;
+                } else if (exam.task1 && exam.task1.image) {
+                    // Keep existing image if no new one uploaded
+                    task1Image = exam.task1.image;
+                }
+                
+                // Handle task2 image
+                let task2Image = null;
+                if (req.files && req.files.task2Image && req.files.task2Image[0]) {
+                    task2Image = '/uploads/' + req.files.task2Image[0].filename;
+                } else if (exam.task2 && exam.task2.image) {
+                    // Keep existing image if no new one uploaded
+                    task2Image = exam.task2.image;
+                }
+                
+                exam.task1 = {
+                    description: req.body.task1Description || '',
+                    tags: req.body.task1Tags || '',
+                    image: task1Image
+                };
+                exam.task2 = {
+                    description: req.body.task2Description || '',
+                    tags: req.body.task2Tags || '',
+                    image: task2Image
+                };
+                db.finalAssessments[index] = exam;
+                res.json({ 
+                    success: true, 
+                    message: 'Writing exam saved successfully',
+                    task1Image: task1Image,
+                    task2Image: task2Image
+                });
+            } else {
+                res.json({ success: false, error: 'Writing exam not found' });
+            }
+        } catch (error) {
+            console.error('Error saving writing exam:', error);
+            res.json({ success: false, error: error.message || 'Failed to save writing exam' });
+        }
+    },
+    
+    // Save Reading Exam Details (Passage and Multiple Choice Questions)
+    saveReadingExam: (req, res) => {
+        try {
+            // Ensure we always return JSON
+            res.setHeader('Content-Type', 'application/json');
+            
+            console.log('=== SAVE READING EXAM REQUEST ===');
+            console.log('req.body:', req.body);
+            console.log('req.body.id:', req.body.id, 'Type:', typeof req.body.id);
+            
+            // Check if ID exists in body
+            if (!req.body || (req.body.id === undefined && req.body.id === null)) {
+                console.error('No ID in request body');
+                return res.json({ 
+                    success: false, 
+                    error: 'Exam ID is required. Received: ' + JSON.stringify(req.body) 
+                });
+            }
+            
+            const examId = parseInt(req.body.id);
+            
+            if (isNaN(examId)) {
+                console.error('Invalid exam ID:', req.body.id);
+                return res.json({ 
+                    success: false, 
+                    error: 'Invalid exam ID: ' + req.body.id + ' (parsed as: ' + examId + ')' 
+                });
+            }
+            
+            console.log('=== SAVE READING EXAM DEBUG ===');
+            console.log('Received ID:', req.body.id, 'Parsed ID:', examId);
+            console.log('Total exams in database:', db.finalAssessments.length);
+            console.log('Reading exams:', db.finalAssessments.filter(a => a.type === 'Reading').map(a => ({ id: a.id, type: typeof a.id, title: a.title })));
+            
+            // Try multiple matching strategies
+            let index = db.finalAssessments.findIndex(a => {
+                const aId = parseInt(a.id);
+                return aId === examId && a.type === 'Reading';
+            });
+            
+            // If not found, try loose comparison
+            if (index === -1) {
+                index = db.finalAssessments.findIndex(a => {
+                    return (a.id == examId || parseInt(a.id) == examId) && a.type === 'Reading';
+                });
+            }
+            
+            // If still not found, try string comparison
+            if (index === -1) {
+                index = db.finalAssessments.findIndex(a => {
+                    return String(a.id) === String(examId) && a.type === 'Reading';
+                });
+            }
+            
+            console.log('Found index:', index);
+            
+            if (index > -1) {
+                const exam = db.finalAssessments[index];
+                console.log('Updating exam:', exam.id, exam.title);
+                exam.passage = req.body.passage || '';
+                try {
+                    exam.questions = JSON.parse(req.body.questions || '[]');
+                    console.log('Parsed questions count:', exam.questions.length);
+                } catch (e) {
+                    console.error('Error parsing questions:', e);
+                    exam.questions = [];
+                }
+                db.finalAssessments[index] = exam;
+                console.log('Exam saved successfully');
+                return res.json({ 
+                    success: true, 
+                    message: 'Reading exam saved successfully'
+                });
+            } else {
+                console.error('Reading exam not found. Searched ID:', examId);
+                console.error('All Reading exams:', db.finalAssessments.filter(a => a.type === 'Reading'));
+                return res.json({ 
+                    success: false, 
+                    error: 'Reading exam not found. ID: ' + examId + '. Available Reading exam IDs: ' + 
+                           db.finalAssessments.filter(a => a.type === 'Reading').map(a => a.id).join(', ')
+                });
+            }
+        } catch (error) {
+            console.error('Error saving reading exam:', error);
+            return res.json({ 
+                success: false, 
+                error: error.message || 'Failed to save reading exam' 
+            });
+        }
+    },
+    
+    // Save Listening Exam Details (Narration, Speakers, and Multiple Choice Questions)
+    saveListeningExam: (req, res) => {
+        try {
+            // Ensure we always return JSON
+            res.setHeader('Content-Type', 'application/json');
+            
+            console.log('=== SAVE LISTENING EXAM REQUEST ===');
+            console.log('req.body:', req.body);
+            console.log('req.body.id:', req.body.id, 'Type:', typeof req.body.id);
+            
+            // Check if ID exists in body
+            if (!req.body || (req.body.id === undefined && req.body.id === null)) {
+                console.error('No ID in request body');
+                return res.json({ 
+                    success: false, 
+                    error: 'Exam ID is required. Received: ' + JSON.stringify(req.body) 
+                });
+            }
+            
+            const examId = parseInt(req.body.id);
+            
+            if (isNaN(examId)) {
+                console.error('Invalid exam ID:', req.body.id);
+                return res.json({ 
+                    success: false, 
+                    error: 'Invalid exam ID: ' + req.body.id + ' (parsed as: ' + examId + ')' 
+                });
+            }
+            
+            console.log('=== SAVE LISTENING EXAM DEBUG ===');
+            console.log('Received ID:', req.body.id, 'Parsed ID:', examId);
+            console.log('Total exams in database:', db.finalAssessments.length);
+            console.log('Listening exams:', db.finalAssessments.filter(a => a.type === 'Listening').map(a => ({ id: a.id, type: typeof a.id, title: a.title })));
+            
+            // Try multiple matching strategies
+            let index = db.finalAssessments.findIndex(a => {
+                const aId = parseInt(a.id);
+                return aId === examId && a.type === 'Listening';
+            });
+            
+            // If not found, try loose comparison
+            if (index === -1) {
+                index = db.finalAssessments.findIndex(a => {
+                    return (a.id == examId || parseInt(a.id) == examId) && a.type === 'Listening';
+                });
+            }
+            
+            // If still not found, try string comparison
+            if (index === -1) {
+                index = db.finalAssessments.findIndex(a => {
+                    return String(a.id) === String(examId) && a.type === 'Listening';
+                });
+            }
+            
+            console.log('Found index:', index);
+            
+            if (index > -1) {
+                const exam = db.finalAssessments[index];
+                console.log('Updating exam:', exam.id, exam.title);
+                exam.narration = req.body.narration || '';
+                exam.speakers = req.body.speakers || [];
+                exam.questions = req.body.questions || [];
+                console.log('Updated narration length:', exam.narration.length);
+                console.log('Updated speakers count:', exam.speakers.length);
+                console.log('Updated questions count:', exam.questions.length);
+                db.finalAssessments[index] = exam;
+                console.log('Listening exam saved successfully');
+                return res.json({ 
+                    success: true, 
+                    message: 'Listening exam saved successfully'
+                });
+            } else {
+                console.error('Listening exam not found. Searched ID:', examId);
+                console.error('All Listening exams:', db.finalAssessments.filter(a => a.type === 'Listening'));
+                return res.json({ 
+                    success: false, 
+                    error: 'Listening exam not found. ID: ' + examId + '. Available Listening exam IDs: ' + 
+                           db.finalAssessments.filter(a => a.type === 'Listening').map(a => a.id).join(', ')
+                });
+            }
+        } catch (error) {
+            console.error('Error saving listening exam:', error);
+            return res.json({ 
+                success: false, 
+                error: error.message || 'Failed to save listening exam' 
+            });
+        }
+    },
+    
+    // Save Speaking Exam Details (Module Content and Questions by Part)
+    saveSpeakingExam: (req, res) => {
+        try {
+            // Ensure we always return JSON
+            res.setHeader('Content-Type', 'application/json');
+            
+            console.log('=== SAVE SPEAKING EXAM REQUEST ===');
+            console.log('req.body:', req.body);
+            console.log('req.body.id:', req.body.id, 'Type:', typeof req.body.id);
+            
+            // Check if ID exists in body
+            if (!req.body || (req.body.id === undefined && req.body.id === null)) {
+                console.error('No ID in request body');
+                return res.json({ 
+                    success: false, 
+                    error: 'Exam ID is required. Received: ' + JSON.stringify(req.body) 
+                });
+            }
+            
+            const examId = parseInt(req.body.id);
+            
+            if (isNaN(examId)) {
+                console.error('Invalid exam ID:', req.body.id);
+                return res.json({ 
+                    success: false, 
+                    error: 'Invalid exam ID: ' + req.body.id + ' (parsed as: ' + examId + ')' 
+                });
+            }
+            
+            console.log('=== SAVE SPEAKING EXAM DEBUG ===');
+            console.log('Received ID:', req.body.id, 'Parsed ID:', examId);
+            console.log('Total exams in database:', db.finalAssessments.length);
+            console.log('Speaking exams:', db.finalAssessments.filter(a => a.type === 'Speaking').map(a => ({ id: a.id, type: typeof a.id, title: a.title })));
+            
+            // Try multiple matching strategies
+            let index = db.finalAssessments.findIndex(a => {
+                const aId = parseInt(a.id);
+                return aId === examId && a.type === 'Speaking';
+            });
+            
+            // If not found, try loose comparison
+            if (index === -1) {
+                index = db.finalAssessments.findIndex(a => {
+                    return (a.id == examId || parseInt(a.id) == examId) && a.type === 'Speaking';
+                });
+            }
+            
+            // If still not found, try string comparison
+            if (index === -1) {
+                index = db.finalAssessments.findIndex(a => {
+                    return String(a.id) === String(examId) && a.type === 'Speaking';
+                });
+            }
+            
+            console.log('Found index:', index);
+            
+            if (index > -1) {
+                const exam = db.finalAssessments[index];
+                console.log('Updating exam:', exam.id, exam.title);
+                exam.moduleContent = req.body.moduleContent || '';
+                exam.questions = req.body.questions || [];
+                console.log('Updated module content length:', exam.moduleContent.length);
+                console.log('Updated questions count:', exam.questions.length);
+                console.log('Questions by part:', {
+                    part1: exam.questions.filter(q => q.partId === 1).length,
+                    part2: exam.questions.filter(q => q.partId === 2).length,
+                    part3: exam.questions.filter(q => q.partId === 3).length
+                });
+                db.finalAssessments[index] = exam;
+                console.log('Speaking exam saved successfully');
+                return res.json({ 
+                    success: true, 
+                    message: 'Speaking exam saved successfully'
+                });
+            } else {
+                console.error('Speaking exam not found. Searched ID:', examId);
+                console.error('All Speaking exams:', db.finalAssessments.filter(a => a.type === 'Speaking'));
+                return res.json({ 
+                    success: false, 
+                    error: 'Speaking exam not found. ID: ' + examId + '. Available Speaking exam IDs: ' + 
+                           db.finalAssessments.filter(a => a.type === 'Speaking').map(a => a.id).join(', ')
+                });
+            }
+        } catch (error) {
+            console.error('Error saving speaking exam:', error);
+            return res.json({ 
+                success: false, 
+                error: error.message || 'Failed to save speaking exam' 
+            });
+        }
     }
 };
 

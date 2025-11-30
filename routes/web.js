@@ -3,8 +3,15 @@ const router = express.Router();
 const adminController = require('../controllers/adminController');
 
 const isAuth = (req, res, next) => {
-    if (req.session.isLoggedIn) next();
-    else res.redirect('/login');
+    if (req.session.isLoggedIn) {
+        next();
+    } else {
+        // Check if this is an API request (expects JSON)
+        if (req.path.startsWith('/admin/save-') || req.path.startsWith('/admin/delete-') || req.method === 'POST') {
+            return res.status(401).json({ success: false, error: 'Unauthorized. Please log in.' });
+        }
+        res.redirect('/login');
+    }
 };
 
 router.get('/', (req, res) => res.render('index'));
@@ -27,7 +34,6 @@ router.post('/admin/delete-user', isAuth, adminController.deleteUser);
 // Module Actions
 router.post('/admin/validate-module', isAuth, adminController.validateModule);
 router.post('/admin/regenerate-module', isAuth, adminController.regenerateModuleContent);
-router.post('/admin/add-module-question', isAuth, adminController.addModuleQuestion); // NEW
 
 // Legacy Module Actions
 router.post('/admin/add-module', isAuth, adminController.addModule);
@@ -57,7 +63,10 @@ const storage = multer.diskStorage({
     },
     filename: function (req, file, cb) {
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        cb(null, 'writing-' + uniqueSuffix + path.extname(file.originalname));
+        // Use fieldname to distinguish between task1Image and task2Image
+        const prefix = file.fieldname === 'task1Image' ? 'writing-task1-' : 
+                       file.fieldname === 'task2Image' ? 'writing-task2-' : 'writing-';
+        cb(null, prefix + uniqueSuffix + path.extname(file.originalname));
     }
 });
 
@@ -76,5 +85,26 @@ const upload = multer({
 router.post('/admin/add-abel', isAuth, upload.single('image'), adminController.addFinalAssessment);
 router.post('/admin/edit-abel', isAuth, upload.single('image'), adminController.editFinalAssessment);
 router.post('/admin/delete-abel', isAuth, adminController.deleteFinalAssessment);
+
+// Writing Exam Save (with file upload support for task images)
+const uploadFields = multer({ 
+    storage: storage,
+    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+    fileFilter: function (req, file, cb) {
+        if (file.mimetype.startsWith('image/')) {
+            cb(null, true);
+        } else {
+            cb(null, false);
+        }
+    }
+}).fields([
+    { name: 'task1Image', maxCount: 1 },
+    { name: 'task2Image', maxCount: 1 }
+]);
+
+router.post('/admin/save-writing-exam', isAuth, uploadFields, adminController.saveWritingExam);
+router.post('/admin/save-reading-exam', isAuth, adminController.saveReadingExam);
+router.post('/admin/save-listening-exam', isAuth, adminController.saveListeningExam);
+router.post('/admin/save-speaking-exam', isAuth, adminController.saveSpeakingExam);
 
 module.exports = router;

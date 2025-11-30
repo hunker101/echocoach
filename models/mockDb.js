@@ -117,9 +117,123 @@ const db = {
         { id: 2, category: 'Speaking', question: 'Synonym for "Happy"', answer: 'Joyful' }
     ],
     finalAssessments: [
-        { id: 1, prompt: 'Discuss the economic impact of AI in 500 words.', type: 'Writing', difficulty: 'Hard' },
-        { id: 2, prompt: 'Read the following passage aloud with correct intonation.', type: 'Speaking', difficulty: 'Standard' }
+        { 
+            id: 1, 
+            type: 'Writing', 
+            difficulty: 'Standard',
+            taskNumber: 1,
+            prompt: 'The chart below shows the percentage of households in owned and rented accommodation in England and Wales between 1918 and 2011. Summarize the information by selecting and reporting the main features, and make comparisons where relevant.',
+            description: 'The chart below shows the percentage of households in owned and rented accommodation in England and Wales between 1918 and 2011. Summarize the information by selecting and reporting the main features, and make comparisons where relevant.',
+            image: 'https://placehold.co/600x400?text=Writing+Task+1'
+        },
+        { 
+            id: 2, 
+            type: 'Reading', 
+            difficulty: 'Standard',
+            prompt: 'According to the passage, what is the primary benefit of regular reading?',
+            question: 'According to the passage, what is the primary benefit of regular reading?',
+            optionA: 'A. Improved memory retention',
+            optionB: 'B. Enhanced critical thinking skills',
+            optionC: 'C. Better time management',
+            optionD: 'D. Increased social connections',
+            correctAnswer: 2
+        },
+        { 
+            id: 3, 
+            type: 'Listening', 
+            difficulty: 'Standard',
+            prompt: 'What is the main topic of the conversation?',
+            question: 'What is the main topic of the conversation?',
+            optionA: 'A. Booking a restaurant table',
+            optionB: 'B. Making a hotel reservation',
+            optionC: 'C. Ordering food delivery',
+            optionD: 'D. Canceling a reservation',
+            correctAnswer: 1
+        },
+        { 
+            id: 4, 
+            type: 'Speaking', 
+            difficulty: 'Standard',
+            part: 1,
+            questionNumber: 1,
+            prompt: 'Tell me about your hometown.',
+            question1: 'Tell me about your hometown.',
+            question2: null
+        },
+        { 
+            id: 5, 
+            type: 'Speaking', 
+            difficulty: 'Standard',
+            part: 1,
+            questionNumber: 2,
+            prompt: 'What do you like most about your job or studies?',
+            question1: null,
+            question2: 'What do you like most about your job or studies?'
+        },
+        { 
+            id: 6, 
+            type: 'Speaking', 
+            difficulty: 'Standard',
+            part: 2,
+            questionNumber: 1,
+            prompt: 'Describe a place you would like to visit. You should say: where it is, what you would do there, and why you want to visit it.',
+            question1: 'Describe a place you would like to visit. You should say: where it is, what you would do there, and why you want to visit it.',
+            question2: null
+        },
+        { 
+            id: 7, 
+            type: 'Speaking', 
+            difficulty: 'Standard',
+            part: 3,
+            questionNumber: 1,
+            prompt: 'Do you think tourism has a positive or negative impact on local communities?',
+            question1: 'Do you think tourism has a positive or negative impact on local communities?',
+            question2: null
+        }
     ],
+    
+    // Tags database for different skill categories
+    tags: {
+        writing: [
+            { id: 1, tags: ['detail_recognition', 'Numbers', 'section_1'], taskIndex: 0 },
+            { id: 2, tags: ['opinion_essay', 'argumentation', 'section_2'], taskIndex: 1 },
+            { id: 3, tags: ['academic_writing', 'data_analysis', 'section_1'], taskIndex: 0 },
+            { id: 4, tags: ['discursive_essay', 'critical_thinking', 'section_2'], taskIndex: 1 },
+            { id: 5, tags: ['descriptive', 'chart_interpretation', 'section_1'], taskIndex: 0 },
+            { id: 6, tags: ['persuasive', 'examples', 'section_2'], taskIndex: 1 }
+        ],
+        reading: [
+            { id: 1, tags: ['detail_recognition', 'Numbers', 'section_1'], questionIndex: 0 },
+            { id: 2, tags: ['main_idea', 'comprehension', 'section_1'], questionIndex: 1 },
+            { id: 3, tags: ['inference', 'critical_analysis', 'section_2'], questionIndex: 0 },
+            { id: 4, tags: ['vocabulary', 'context_clues', 'section_1'], questionIndex: 2 },
+            { id: 5, tags: ['true_false_not_given', 'fact_checking', 'section_2'], questionIndex: 1 },
+            { id: 6, tags: ['matching_headings', 'paragraph_structure', 'section_3'], questionIndex: 0 },
+            { id: 7, tags: ['summary_completion', 'key_points', 'section_2'], questionIndex: 2 },
+            { id: 8, tags: ['multiple_choice', 'detail_recognition', 'section_1'], questionIndex: 3 }
+        ],
+        listening: [
+            { id: 1, tags: ['detail_recognition', 'Numbers', 'section_1'], questionIndex: 0 },
+            { id: 2, tags: ['conversation', 'everyday_situations', 'section_1'], questionIndex: 1 },
+            { id: 3, tags: ['monologue', 'academic_context', 'section_2'], questionIndex: 0 },
+            { id: 4, tags: ['note_completion', 'key_information', 'section_2'], questionIndex: 1 },
+            { id: 5, tags: ['multiple_choice', 'understanding', 'section_3'], questionIndex: 0 },
+            { id: 6, tags: ['map_labeling', 'directions', 'section_2'], questionIndex: 2 },
+            { id: 7, tags: ['form_completion', 'personal_details', 'section_1'], questionIndex: 3 },
+            { id: 8, tags: ['lecture', 'academic_vocabulary', 'section_4'], questionIndex: 0 }
+        ],
+        speaking: [
+            { id: 1, tags: ['introduction', 'personal_information', 'part_1'], part: 1, questionIndex: 0 },
+            { id: 2, tags: ['fluency', 'pronunciation', 'part_1'], part: 1, questionIndex: 1 },
+            { id: 3, tags: ['long_turn', 'cue_card', 'part_2'], part: 2, questionIndex: 0 },
+            { id: 4, tags: ['discussion', 'abstract_topics', 'part_3'], part: 3, questionIndex: 0 },
+            { id: 5, tags: ['opinions', 'justification', 'part_3'], part: 3, questionIndex: 1 },
+            { id: 6, tags: ['describing', 'past_experiences', 'part_2'], part: 2, questionIndex: 1 },
+            { id: 7, tags: ['comparing', 'future_plans', 'part_3'], part: 3, questionIndex: 2 },
+            { id: 8, tags: ['hobbies', 'daily_routine', 'part_1'], part: 1, questionIndex: 2 }
+        ]
+    },
+    
     modules: [] 
 };
 

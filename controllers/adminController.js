@@ -39,7 +39,8 @@ const adminController = {
             pendingModules: db.pendingModules, 
             modules: db.modules, // Add this line to pass admin modules
             assessments: db.assessments,
-            finalAssessments: db.finalAssessments
+            finalAssessments: db.finalAssessments,
+            tags: db.tags // Pass tags database
         });
     },
 
@@ -142,15 +143,96 @@ const adminController = {
         res.redirect('/admin/manage?tab=testbank');
     },
 
-    // --- ABEL Final Assessment ---
+    // --- ABEL Final Assessment (IELTS Mock Exam) ---
     addFinalAssessment: (req, res) => {
-        db.finalAssessments.push({ id: Date.now(), prompt: req.body.prompt, type: req.body.type, difficulty: req.body.difficulty });
+        const newQuestion = {
+            id: Date.now(),
+            type: req.body.type,
+            difficulty: req.body.difficulty || 'Standard',
+            prompt: req.body.prompt || ''
+        };
+
+        // Handle Writing questions
+        if (req.body.type === 'Writing') {
+            newQuestion.taskNumber = parseInt(req.body.taskNumber) || 1;
+            // Handle uploaded image file
+            if (req.file) {
+                newQuestion.image = '/uploads/' + req.file.filename;
+            } else {
+                newQuestion.image = null;
+            }
+            newQuestion.description = req.body.prompt;
+        }
+        
+        // Handle Reading/Listening questions
+        if (req.body.type === 'Reading' || req.body.type === 'Listening') {
+            newQuestion.optionA = req.body.optionA || '';
+            newQuestion.optionB = req.body.optionB || '';
+            newQuestion.optionC = req.body.optionC || '';
+            newQuestion.optionD = req.body.optionD || '';
+            newQuestion.correctAnswer = parseInt(req.body.correctAnswer) || 1;
+            newQuestion.question = req.body.prompt; // Store question text
+        }
+        
+        // Handle Speaking questions
+        if (req.body.type === 'Speaking') {
+            newQuestion.part = parseInt(req.body.part) || 1;
+            newQuestion.questionNumber = parseInt(req.body.questionNumber) || 1;
+            newQuestion.question1 = req.body.questionNumber == 1 ? req.body.prompt : null;
+            newQuestion.question2 = req.body.questionNumber == 2 ? req.body.prompt : null;
+        }
+
+        db.finalAssessments.push(newQuestion);
         res.redirect('/admin/manage?tab=abel');
     },
     editFinalAssessment: (req, res) => {
         const index = db.finalAssessments.findIndex(a => a.id == req.body.id);
         if (index > -1) {
-            db.finalAssessments[index] = { ...db.finalAssessments[index], prompt: req.body.prompt, type: req.body.type, difficulty: req.body.difficulty, id: parseInt(req.body.id) };
+            const existing = db.finalAssessments[index];
+            const updated = {
+                ...existing,
+                id: parseInt(req.body.id),
+                type: req.body.type,
+                prompt: req.body.prompt || existing.prompt,
+                difficulty: req.body.difficulty || existing.difficulty || 'Standard'
+            };
+
+            // Handle Writing questions
+            if (req.body.type === 'Writing') {
+                updated.taskNumber = parseInt(req.body.taskNumber) || 1;
+                // Handle uploaded image file - if new file uploaded, use it; otherwise keep existing
+                if (req.file) {
+                    updated.image = '/uploads/' + req.file.filename;
+                } else {
+                    updated.image = existing.image || null;
+                }
+                updated.description = req.body.prompt || existing.description;
+            }
+            
+            // Handle Reading/Listening questions
+            if (req.body.type === 'Reading' || req.body.type === 'Listening') {
+                updated.optionA = req.body.optionA || existing.optionA || '';
+                updated.optionB = req.body.optionB || existing.optionB || '';
+                updated.optionC = req.body.optionC || existing.optionC || '';
+                updated.optionD = req.body.optionD || existing.optionD || '';
+                updated.correctAnswer = parseInt(req.body.correctAnswer) || existing.correctAnswer || 1;
+                updated.question = req.body.prompt || existing.question;
+            }
+
+            // Handle Speaking questions
+            if (req.body.type === 'Speaking') {
+                updated.part = parseInt(req.body.part) || existing.part || 1;
+                updated.questionNumber = parseInt(req.body.questionNumber) || existing.questionNumber || 1;
+                if (req.body.questionNumber == 1) {
+                    updated.question1 = req.body.prompt;
+                    updated.question2 = existing.question2 || null;
+                } else if (req.body.questionNumber == 2) {
+                    updated.question1 = existing.question1 || null;
+                    updated.question2 = req.body.prompt;
+                }
+            }
+
+            db.finalAssessments[index] = updated;
         }
         res.redirect('/admin/manage?tab=abel');
     },

@@ -57,6 +57,66 @@
         { id: 1, description: 'Describe the image below.', image: 'https://placehold.co/300x200?text=Sample+Image' },
         { id: 2, description: 'What is happening in this scene?', image: null }
     ],
+    tagsData: {},
+    finalAssessmentsList: [],
+    mockExamView: 'list', // 'list' or 'skill'
+    mockExamSkill: null, // 'writing', 'reading', 'listening', 'speaking'
+    initTags() {
+        const tagsDataElement = document.getElementById('tags-data');
+        if (tagsDataElement) {
+            this.tagsData = JSON.parse(tagsDataElement.textContent) || {};
+        }
+    },
+    initFinalAssessments() {
+        const finalAssessmentsElement = document.getElementById('final-assessments-data');
+        if (finalAssessmentsElement) {
+            this.finalAssessmentsList = JSON.parse(finalAssessmentsElement.textContent) || [];
+        }
+    },
+    getFilteredMockExamQuestions() {
+        if (!this.mockExamSkill) return this.finalAssessmentsList || [];
+        if (!this.finalAssessmentsList || this.finalAssessmentsList.length === 0) return [];
+        return this.finalAssessmentsList.filter(q => {
+            if (!q || !q.type) return false;
+            return q.type.toLowerCase() === this.mockExamSkill.toLowerCase();
+        });
+    },
+    getCurrentTags() {
+        if (!this.activeSkill || !this.tagsData[this.activeSkill]) {
+            return 'detail_recognition, Numbers, section_1'; // Default fallback
+        }
+        
+        const skillTags = this.tagsData[this.activeSkill];
+        let matchingTag = null;
+        
+        if (this.activeSkill === 'writing') {
+            // Find tag matching current task index
+            matchingTag = skillTags.find(tag => tag.taskIndex === this.currentWritingTaskIndex);
+        } else if (this.activeSkill === 'reading') {
+            // Find tag matching current question index
+            matchingTag = skillTags.find(tag => tag.questionIndex === this.currentReadingQuestionIndex);
+        } else if (this.activeSkill === 'listening') {
+            // Find tag matching current question index
+            matchingTag = skillTags.find(tag => tag.questionIndex === this.currentListeningQuestionIndex);
+        } else if (this.activeSkill === 'speaking') {
+            // Find tag matching current part and question (convert to 0-based index)
+            matchingTag = skillTags.find(tag => 
+                tag.part === this.currentSpeakingPart && 
+                tag.questionIndex === (this.currentSpeakingQuestion - 1)
+            );
+        }
+        
+        if (matchingTag && matchingTag.tags) {
+            return matchingTag.tags.join(', ');
+        }
+        
+        // Fallback to first available tag for the skill
+        if (skillTags.length > 0 && skillTags[0].tags) {
+            return skillTags[0].tags.join(', ');
+        }
+        
+        return 'detail_recognition, Numbers, section_1'; // Default fallback
+    },
     getLevelClass(level) {
         if (!level) return 'bg-gray-100 text-gray-800';
         if (level === 'Beginner') return 'bg-green-100 text-green-800';
@@ -139,6 +199,14 @@
         };
         return titles[this.currentSpeakingPart] || 'Part 1: Introduction and Interview';
     },
+    getSpeakingPartTitleForQuestion(part) {
+        const titles = {
+            1: 'Part 1: Introduction and Interview',
+            2: 'Part 2: Long Turn',
+            3: 'Part 3: Discussion'
+        };
+        return titles[part] || 'Part 1: Introduction and Interview';
+    },
     initializeMockData(skill) {
         if (!this.selectedModuleData) return;
         
@@ -155,12 +223,7 @@
                         description: 'The chart below shows the percentage of households in owned and rented accommodation in England and Wales between 1918 and 2011. Summarize the information by selecting and reporting the main features, and make comparisons where relevant.'
                     },
                     {
-                        image: 'https://placehold.co/600x400?text=Writing+Task+2',
                         description: 'Some people think that it is better to educate boys and girls in separate schools. Others, however, believe that boys and girls benefit more from attending mixed schools. Discuss both views and give your own opinion.'
-                    },
-                    {
-                        image: 'https://placehold.co/600x400?text=Writing+Task+3',
-                        description: 'You should spend about 20 minutes on this task. The graph below shows the proportion of the population aged 65 and over between 1940 and 2040 in three different countries. Summarize the information by selecting and reporting the main features, and make comparisons where relevant.'
                     }
                 ]
             };
@@ -338,6 +401,12 @@
     
     <!-- Modules Data (hidden, for Alpine.js initialization) -->
     <script id="modules-data" type="application/json"><%- JSON.stringify(pendingModules) %></script>
+    
+    <!-- Tags Data (hidden, for Alpine.js initialization) -->
+    <script id="tags-data" type="application/json"><%- JSON.stringify(tags) %></script>
+    
+    <!-- Final Assessments Data (hidden, for Alpine.js initialization) -->
+    <script id="final-assessments-data" type="application/json"><%- JSON.stringify(finalAssessments) %></script>
 
     <!-- Top Navigation -->
     <nav class="bg-white shadow-sm border-b border-gray-200 fixed w-full z-30">
@@ -393,7 +462,7 @@
                     </button>
                     <button @click="currentTab = 'abel'" :class="currentTab === 'abel' ? 'bg-purple-50 text-purple-700' : 'text-gray-600 hover:bg-gray-50'" class="w-full flex items-center space-x-3 px-4 py-3 rounded-lg font-medium transition">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                        <span>ABEL Assessment</span>
+                        <span>IELTS Mock Exam</span>
                     </button>
                 </div>
             </div>
@@ -519,7 +588,7 @@
             <div x-show="currentTab === 'modules'" x-cloak x-transition.opacity>
                 
                 <!-- A. LIST VIEW: Select User -->
-                <div x-show="moduleView === 'list'" x-init="initModules()">
+                <div x-show="moduleView === 'list'" x-init="initModules(); initTags()">
                     <div class="flex justify-between items-center mb-6">
                         <h2 class="text-2xl font-bold text-gray-800">Module Management</h2>
                     </div>
@@ -641,7 +710,7 @@
                 </div>
 
                 <!-- C. CONTENT VIEW (Clean & Scrollable Card) -->
-                <div x-show="moduleView === 'content'" x-cloak class="flex flex-col h-[calc(100vh-80px)]">
+                <div x-show="moduleView === 'content'" x-cloak x-init="initTags()" class="flex flex-col h-[calc(100vh-80px)]">
                     <div class="bg-white border-b py-4 px-6 flex justify-between items-center">
                         <div class="flex items-center gap-3">
                             <button @click="moduleView = 'detail'" class="text-gray-500 hover:text-gray-800 p-2 hover:bg-gray-100 rounded-full transition">
@@ -721,18 +790,13 @@
                                 <!-- Writing Layout: Image + Description -->
                                 <template x-if="activeSkill === 'writing'">
                                     <div>
-                                        <div class="mb-6">
-                                            <div class="w-full rounded-lg overflow-hidden bg-gray-100">
-                                                <template x-if="selectedModuleData?.content?.writing?.tasks?.[currentWritingTaskIndex]?.image || selectedModuleData?.content?.writing?.image">
+                                        <template x-if="selectedModuleData?.content?.writing?.tasks?.[currentWritingTaskIndex]?.image || selectedModuleData?.content?.writing?.image">
+                                            <div class="mb-6">
+                                                <div class="w-full rounded-lg overflow-hidden bg-gray-100">
                                                     <img :src="selectedModuleData?.content?.writing?.tasks?.[currentWritingTaskIndex]?.image || selectedModuleData?.content?.writing?.image" alt="Writing prompt image" class="w-full h-auto object-cover">
-                                                </template>
-                                                <template x-if="!selectedModuleData?.content?.writing?.tasks?.[currentWritingTaskIndex]?.image && !selectedModuleData?.content?.writing?.image">
-                                                    <div class="w-full h-64 flex items-center justify-center">
-                                                        <p class="text-gray-400 text-sm">No image available</p>
-                                                    </div>
-                                                </template>
+                                                </div>
                                             </div>
-                                        </div>
+                                        </template>
                                         <div>
                                             <p class="text-sm text-gray-600 leading-relaxed" x-text="selectedModuleData?.content?.writing?.tasks?.[currentWritingTaskIndex]?.description || selectedModuleData?.content?.writing?.description || 'No description available.'"></p>
                                         </div>
@@ -835,6 +899,12 @@
                             
                             <!-- Card Footer / Nav -->
                             <div class="bg-gray-50 px-8 py-4 border-t border-gray-100 flex justify-between items-center">
+                                <!-- Tags Section -->
+                                <div class="flex-1">
+                                    <p class="text-sm text-gray-600 font-medium">TAGS: <span class="text-gray-500 font-normal" x-text="getCurrentTags()">detail_recognition, Numbers, section_1</span></p>
+                                </div>
+                                
+                                <div class="flex items-center gap-4">
                                 <template x-if="activeSkill === 'writing'">
                                     <button 
                                         @click="if(currentWritingTaskIndex > 0) currentWritingTaskIndex--" 
@@ -907,6 +977,7 @@
                                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
                                     </button>
                                 </template>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -991,26 +1062,198 @@
                 </div>
             </div>
 
-            <!-- 5. ABEL TAB (Unchanged) -->
-            <div x-show="currentTab === 'abel'" x-cloak x-transition.opacity>
-                <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-2xl font-bold text-gray-800">ABEL Final Assessment</h2>
-                    <button @click="showModal = 'addAbel'" class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition">+ Add Final Question</button>
-                </div>
-                <div class="space-y-4">
-                    <% finalAssessments.forEach(function(abel) { %>
-                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex justify-between items-center group hover:shadow-md transition">
-                        <div>
-                            <h4 class="font-medium text-gray-900"><%= abel.prompt %></h4>
-                            <div class="text-sm text-gray-500 mt-1 flex gap-4"><span>Type: <b><%= abel.type %></b></span><span>Difficulty: <b class="text-orange-500"><%= abel.difficulty %></b></span></div>
+            <!-- 5. EILTS MOCK EXAM TAB -->
+            <div x-show="currentTab === 'abel'" x-cloak x-transition.opacity x-init="initFinalAssessments()" @click="initFinalAssessments()">
+                <!-- Skill Cards View -->
+                <template x-if="mockExamView === 'list'">
+                    <div>
+                        <div class="flex justify-between items-center mb-6">
+                            <h2 class="text-2xl font-bold text-gray-800">EILTS mock exam</h2>
                         </div>
-                        <div class="flex items-center gap-2 opacity-80 group-hover:opacity-100 transition">
-                            <button data-abel='<%- JSON.stringify(abel) %>' @click="showModal = 'editAbel'; editItem = JSON.parse($el.dataset.abel)" class="text-blue-500 hover:text-blue-700 p-2 rounded-full hover:bg-blue-50 transition" title="Edit"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg></button>
-                            <form action="/admin/delete-abel" method="POST" onsubmit="return confirm('Delete this item?');"><input type="hidden" name="id" value="<%= abel.id %>"><button type="submit" class="text-red-500 hover:text-red-700 p-2 rounded-full hover:bg-red-50 transition"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button></form>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div @click="mockExamView = 'skill'; mockExamSkill = 'writing'; initFinalAssessments()" class="flex items-center gap-4 cursor-pointer group hover:bg-blue-50 p-4 rounded-xl transition border border-gray-100 hover:border-blue-200 bg-gray-50">
+                                <div class="bg-blue-100 p-3 rounded-full text-blue-600"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg></div>
+                                <div><h4 class="font-bold text-gray-800 text-lg group-hover:text-blue-700 mb-1">Writing</h4><p class="text-sm text-gray-500">Develop coherent and well-structured responses</p></div>
+                            </div>
+                            <div @click="mockExamView = 'skill'; mockExamSkill = 'reading'; initFinalAssessments()" class="flex items-center gap-4 cursor-pointer group hover:bg-blue-50 p-4 rounded-xl transition border border-gray-100 hover:border-blue-200 bg-gray-50">
+                                <div class="bg-green-100 p-3 rounded-full text-green-600"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg></div>
+                                <div><h4 class="font-bold text-gray-800 text-lg group-hover:text-blue-700">Reading</h4><p class="text-sm text-gray-500">Boost your comprehension and skimming skills</p></div>
+                            </div>
+                            <div @click="mockExamView = 'skill'; mockExamSkill = 'listening'; initFinalAssessments()" class="flex items-center gap-4 cursor-pointer group hover:bg-blue-50 p-4 rounded-xl transition border border-gray-100 hover:border-blue-200 bg-gray-50">
+                                <div class="bg-purple-100 p-3 rounded-full text-purple-600"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"></path></svg></div>
+                                <div><h4 class="font-bold text-gray-800 text-lg group-hover:text-blue-700">Listening</h4><p class="text-sm text-gray-500">Enhance your focus and audio understanding</p></div>
+                            </div>
+                            <div @click="mockExamView = 'skill'; mockExamSkill = 'speaking'; initFinalAssessments()" class="flex items-center gap-4 cursor-pointer group hover:bg-blue-50 p-4 rounded-xl transition border border-gray-100 hover:border-blue-200 bg-gray-50">
+                                <div class="bg-yellow-100 p-3 rounded-full text-yellow-600"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg></div>
+                                <div><h4 class="font-bold text-gray-800 text-lg group-hover:text-blue-700">Speaking</h4><p class="text-sm text-gray-500">Build fluency, improve pronunciation, and speak with clarity</p></div>
+                            </div>
                         </div>
                     </div>
-                    <% }); %>
-                </div>
+                </template>
+
+                <!-- Skill Questions View -->
+                <template x-if="mockExamView === 'skill'">
+                    <div>
+                        <div class="flex justify-between items-center mb-6">
+                            <div class="flex items-center gap-3">
+                                <button @click="mockExamView = 'list'; mockExamSkill = null" class="text-gray-500 hover:text-gray-800 p-2 hover:bg-gray-100 rounded-full transition">
+                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+                                </button>
+                                <h2 class="text-2xl font-bold text-gray-800 capitalize" x-text="mockExamSkill"></h2>
+                            </div>
+                            <button @click="showModal = 'addAbel'; editItem = { type: mockExamSkill.charAt(0).toUpperCase() + mockExamSkill.slice(1) }; previewImage = null" class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition">+ Add Question</button>
+                        </div>
+                        <div class="space-y-4">
+                            <template x-for="question in getFilteredMockExamQuestions()" :key="question.id">
+                                <!-- Writing Question Card -->
+                                <template x-if="question.type === 'Writing'">
+                                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden group hover:shadow-md transition">
+                                        <div class="p-6">
+                                            <div class="flex justify-between items-start mb-4">
+                                                <h3 class="text-xl font-bold text-gray-900">
+                                                    <span>Writing</span>
+                                                    <span class="text-gray-500 font-normal text-lg">Task 1</span>
+                                                </h3>
+                                                <div class="flex items-center gap-2 opacity-80 group-hover:opacity-100 transition">
+                                                    <button :data-abel="JSON.stringify(question)" @click="showModal = 'editAbel'; editItem = JSON.parse($el.dataset.abel); previewImage = question.image || null" class="text-blue-500 hover:text-blue-700 p-2 rounded-full hover:bg-blue-50 transition" title="Edit">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                                    </button>
+                                                    <form action="/admin/delete-abel" method="POST" onsubmit="return confirm('Delete this item?');">
+                                                        <input type="hidden" name="id" :value="question.id">
+                                                        <button type="submit" class="text-red-500 hover:text-red-700 p-2 rounded-full hover:bg-red-50 transition">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            </div>
+                                            
+                                            <div class="mb-4">
+                                                <div class="w-full rounded-lg overflow-hidden bg-gray-100">
+                                                    <template x-if="question.image">
+                                                        <img :src="question.image" alt="Writing prompt image" class="w-full h-auto object-cover">
+                                                    </template>
+                                                    <template x-if="!question.image">
+                                                        <div class="w-full h-64 flex items-center justify-center">
+                                                            <p class="text-gray-400 text-sm">No image available</p>
+                                                        </div>
+                                                    </template>
+                                                </div>
+                                            </div>
+                                            
+                                            <div>
+                                                <p class="text-sm text-gray-600 leading-relaxed" x-text="question.prompt || question.description || 'No description available.'"></p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </template>
+                                
+                                <!-- Reading/Listening Question Card -->
+                                <template x-if="question.type === 'Reading' || question.type === 'Listening'">
+                                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden group hover:shadow-md transition">
+                                        <div class="p-6">
+                                            <div class="flex justify-between items-start mb-4">
+                                                <h3 class="text-xl font-bold text-gray-900">
+                                                    <span x-text="question.type"></span>
+                                                    <span class="text-gray-500 font-normal text-lg" x-text="'Question ' + (question.questionNumber || (getFilteredMockExamQuestions().indexOf(question) + 1))"></span>
+                                                </h3>
+                                                <div class="flex items-center gap-2 opacity-80 group-hover:opacity-100 transition">
+                                                    <button :data-abel="JSON.stringify(question)" @click="showModal = 'editAbel'; editItem = JSON.parse($el.dataset.abel)" class="text-blue-500 hover:text-blue-700 p-2 rounded-full hover:bg-blue-50 transition" title="Edit">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                                    </button>
+                                                    <form action="/admin/delete-abel" method="POST" onsubmit="return confirm('Delete this item?');">
+                                                        <input type="hidden" name="id" :value="question.id">
+                                                        <button type="submit" class="text-red-500 hover:text-red-700 p-2 rounded-full hover:bg-red-50 transition">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            </div>
+                                            
+                                            <div class="mb-6">
+                                                <p class="text-lg text-gray-800 font-medium leading-relaxed" x-text="question.prompt || question.question || 'No question available.'"></p>
+                                            </div>
+                                            
+                                            <div class="space-y-3">
+                                                <div class="p-3 border rounded-lg transition" :class="(question.correctAnswer || 1) === 1 ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-gray-50'">
+                                                    <p class="text-sm text-gray-700" x-text="question.optionA || 'A. Option A'"></p>
+                                                </div>
+                                                <div class="p-3 border rounded-lg transition" :class="(question.correctAnswer || 1) === 2 ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-gray-50'">
+                                                    <p class="text-sm text-gray-700" x-text="question.optionB || 'B. Option B'"></p>
+                                                </div>
+                                                <div class="p-3 border rounded-lg transition" :class="(question.correctAnswer || 1) === 3 ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-gray-50'">
+                                                    <p class="text-sm text-gray-700" x-text="question.optionC || 'C. Option C'"></p>
+                                                </div>
+                                                <div class="p-3 border rounded-lg transition" :class="(question.correctAnswer || 1) === 4 ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-gray-50'">
+                                                    <p class="text-sm text-gray-700" x-text="question.optionD || 'D. Option D'"></p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </template>
+                                
+                                <!-- Speaking Question Card -->
+                                <template x-if="question.type === 'Speaking'">
+                                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden group hover:shadow-md transition">
+                                        <div class="p-6">
+                                            <div class="flex justify-between items-start mb-4">
+                                                <h3 class="text-xl font-bold text-gray-900">
+                                                    <span>Speaking</span>
+                                                    <span class="text-gray-500 font-normal text-lg" x-text="'Part ' + (question.part || 1)"></span>
+                                                </h3>
+                                                <div class="flex items-center gap-2 opacity-80 group-hover:opacity-100 transition">
+                                                    <button :data-abel="JSON.stringify(question)" @click="showModal = 'editAbel'; editItem = JSON.parse($el.dataset.abel)" class="text-blue-500 hover:text-blue-700 p-2 rounded-full hover:bg-blue-50 transition" title="Edit">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                                    </button>
+                                                    <form action="/admin/delete-abel" method="POST" onsubmit="return confirm('Delete this item?');">
+                                                        <input type="hidden" name="id" :value="question.id">
+                                                        <button type="submit" class="text-red-500 hover:text-red-700 p-2 rounded-full hover:bg-red-50 transition">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            </div>
+                                            
+                                            <!-- Part Title -->
+                                            <div class="mb-6">
+                                                <h5 class="text-xl font-bold text-gray-900 mb-2" x-text="getSpeakingPartTitleForQuestion(question.part || 1)"></h5>
+                                            </div>
+
+                                            <!-- Question Navigation -->
+                                            <div class="mb-6 flex gap-2">
+                                                <button 
+                                                    disabled
+                                                    :class="(question.questionNumber || 1) === 1 ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'"
+                                                    class="flex-1 px-4 py-2 rounded-lg transition font-medium text-sm cursor-default"
+                                                >
+                                                    Question 1
+                                                </button>
+                                                <button 
+                                                    disabled
+                                                    :class="(question.questionNumber || 1) === 2 ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'"
+                                                    class="flex-1 px-4 py-2 rounded-lg transition font-medium text-sm cursor-default"
+                                                >
+                                                    Question 2
+                                                </button>
+                                            </div>
+
+                                            <!-- Question Display -->
+                                            <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                                                <p class="text-lg text-gray-800 font-medium leading-relaxed" x-text="(question.questionNumber === 1 ? question.question1 : question.question2) || question.prompt || 'No question available.'"></p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </template>
+                            </template>
+                            <div x-show="getFilteredMockExamQuestions().length === 0" class="text-center py-12 border border-dashed border-gray-300 rounded-lg bg-gray-50">
+                                <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-purple-50 mb-4">
+                                    <svg class="w-8 h-8 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                                </div>
+                                <h3 class="text-lg font-medium text-gray-900">No questions yet</h3>
+                                <p class="text-gray-500 max-w-sm mx-auto mt-1">Add questions for this skill category to get started.</p>
+                            </div>
+                        </div>
+                    </div>
+                </template>
             </div>
 
         </main>
@@ -1096,41 +1339,279 @@
     <div x-show="showModal === 'generateAI'" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" x-cloak><div class="bg-white rounded-xl p-6 w-full max-w-md shadow-2xl border-t-4 border-purple-500"><h3 class="text-xl font-bold mb-2 text-gray-800">✨ AI Question Generator</h3><p class="text-sm text-gray-500 mb-4">Enter a topic, and Gemini AI will create a test question for you.</p><form action="/admin/generate-test" method="POST" class="space-y-4"><div><label class="block text-sm font-medium text-gray-700">Topic / Context</label><input type="text" name="topic" placeholder="e.g. Past Tense Verbs..." required class="w-full border p-2 rounded"></div><div class="flex justify-end gap-2 mt-6"><button type="button" @click="showModal = false" class="px-4 py-2 border rounded text-gray-600">Cancel</button><button type="submit" class="px-4 py-2 ai-gradient text-white rounded shadow-md hover:opacity-90">Generate & Save</button></div></form></div></div>
     
     <!-- Add ABEL -->
-    <div x-show="showModal === 'addAbel'" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" x-cloak><div class="bg-white rounded-xl p-6 w-full max-w-lg shadow-2xl"><h3 class="text-xl font-bold mb-4 text-purple-800">Add Final Assessment</h3><form action="/admin/add-abel" method="POST" class="space-y-4"><textarea name="prompt" placeholder="Prompt/Question" required class="w-full border p-2 rounded h-24"></textarea><div class="grid grid-cols-2 gap-4"><select name="type" class="border p-2 rounded"><option>Speaking</option><option>Reading</option><option>Listening</option><option>Writing</option></select><select name="difficulty" class="border p-2 rounded"><option>Standard</option><option>Hard</option></select></div><div class="flex justify-end gap-2"><button type="button" @click="showModal = false" class="px-4 py-2 border rounded">Cancel</button><button type="submit" class="px-4 py-2 bg-purple-600 text-white rounded">Save</button></div></form></div></div>
+    <div x-show="showModal === 'addAbel'" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" x-cloak>
+        <div class="bg-white rounded-xl p-6 w-full max-w-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
+            <h3 class="text-xl font-bold mb-4 text-purple-800">Add Question</h3>
+            
+            <!-- Writing Interface -->
+            <template x-if="editItem.type === 'Writing'">
+                <form action="/admin/add-abel" method="POST" enctype="multipart/form-data" class="space-y-6">
+                    <input type="hidden" name="type" value="Writing">
+                    <input type="hidden" name="difficulty" value="Standard">
+                    <input type="hidden" name="taskNumber" value="1">
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Upload Image (Optional)</label>
+                        <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md bg-gray-50">
+                            <div class="space-y-1 text-center w-full">
+                                <div x-show="!previewImage">
+                                    <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                                        <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                    </svg>
+                                    <div class="flex text-sm text-gray-600 justify-center">
+                                        <label class="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none">
+                                            <span>Upload a file</span>
+                                            <input type="file" name="image" accept="image/*" class="sr-only" @change="handleFileUpload">
+                                        </label>
+                                    </div>
+                                </div>
+                                <div x-show="previewImage" class="relative">
+                                    <img :src="previewImage" class="max-h-64 mx-auto rounded-md shadow-sm">
+                                    <button type="button" @click="previewImage = null" class="absolute top-0 right-0 bg-red-500 text-white rounded-full p-1 -mt-2 -mr-2 shadow-sm hover:bg-red-600">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                        <textarea name="prompt" placeholder="Enter the task description..." required class="w-full border p-3 rounded h-32" x-model="editItem.prompt"></textarea>
+                    </div>
+                    
+                    <div class="flex justify-end gap-2 pt-4">
+                        <button type="button" @click="showModal = false; editItem = {}; previewImage = null" class="px-4 py-2 border rounded">Cancel</button>
+                        <button type="submit" class="px-4 py-2 bg-purple-600 text-white rounded">Save</button>
+                    </div>
+                </form>
+            </template>
+            
+            <!-- Reading/Listening Interface -->
+            <template x-if="editItem.type === 'Reading' || editItem.type === 'Listening'">
+                <form action="/admin/add-abel" method="POST" class="space-y-6">
+                    <input type="hidden" name="type" :value="editItem.type">
+                    <input type="hidden" name="difficulty" value="Standard">
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Question</label>
+                        <textarea name="prompt" placeholder="Enter the question..." required class="w-full border p-3 rounded h-24" x-model="editItem.prompt"></textarea>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Option A</label>
+                        <input type="text" name="optionA" placeholder="Enter option A" required class="w-full border p-3 rounded" x-model="editItem.optionA">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Option B</label>
+                        <input type="text" name="optionB" placeholder="Enter option B" required class="w-full border p-3 rounded" x-model="editItem.optionB">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Option C</label>
+                        <input type="text" name="optionC" placeholder="Enter option C" required class="w-full border p-3 rounded" x-model="editItem.optionC">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Option D</label>
+                        <input type="text" name="optionD" placeholder="Enter option D" required class="w-full border p-3 rounded" x-model="editItem.optionD">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Correct Answer</label>
+                        <select name="correctAnswer" x-model="editItem.correctAnswer" required class="w-full border p-3 rounded">
+                            <option value="">Select correct answer</option>
+                            <option value="1">A</option>
+                            <option value="2">B</option>
+                            <option value="3">C</option>
+                            <option value="4">D</option>
+                        </select>
+                    </div>
+                    
+                    <div class="flex justify-end gap-2 pt-4">
+                        <button type="button" @click="showModal = false; editItem = {}" class="px-4 py-2 border rounded">Cancel</button>
+                        <button type="submit" class="px-4 py-2 bg-purple-600 text-white rounded">Save</button>
+                    </div>
+                </form>
+            </template>
+            
+            <!-- Speaking Interface -->
+            <template x-if="editItem.type === 'Speaking'">
+                <form action="/admin/add-abel" method="POST" class="space-y-6">
+                    <input type="hidden" name="type" value="Speaking">
+                    <input type="hidden" name="difficulty" value="Standard">
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Part</label>
+                        <select name="part" x-model="editItem.part" required class="w-full border p-3 rounded">
+                            <option value="">Select Part</option>
+                            <option value="1">Part 1: Introduction and Interview</option>
+                            <option value="2">Part 2: Long Turn</option>
+                            <option value="3">Part 3: Discussion</option>
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Question Number</label>
+                        <select name="questionNumber" x-model="editItem.questionNumber" required class="w-full border p-3 rounded">
+                            <option value="">Select Question</option>
+                            <option value="1">Question 1</option>
+                            <option value="2">Question 2</option>
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Question</label>
+                        <textarea name="prompt" placeholder="Enter the question..." required class="w-full border p-3 rounded h-32" x-model="editItem.prompt"></textarea>
+                    </div>
+                    
+                    <div class="flex justify-end gap-2 pt-4">
+                        <button type="button" @click="showModal = false; editItem = {}" class="px-4 py-2 border rounded">Cancel</button>
+                        <button type="submit" class="px-4 py-2 bg-purple-600 text-white rounded">Save</button>
+                    </div>
+                </form>
+            </template>
+        </div>
+    </div>
 
     <!-- Edit ABEL Modal -->
     <div x-show="showModal === 'editAbel'" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" x-cloak>
-        <div class="bg-white rounded-xl p-6 w-full max-w-lg shadow-2xl">
-            <h3 class="text-xl font-bold mb-4 text-purple-800">Edit Final Assessment</h3>
-            <form action="/admin/edit-abel" method="POST" class="space-y-4">
-                <input type="hidden" name="id" x-model="editItem.id">
-                <div>
-                    <label class="text-xs text-gray-500">Prompt</label>
-                    <textarea name="prompt" x-model="editItem.prompt" required class="w-full border p-2 rounded h-24"></textarea>
-                </div>
-                <div class="grid grid-cols-2 gap-4">
+        <div class="bg-white rounded-xl p-6 w-full max-w-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
+            <h3 class="text-xl font-bold mb-4 text-purple-800">Edit Question</h3>
+            
+            <!-- Writing Interface -->
+            <template x-if="editItem.type === 'Writing'">
+                <form action="/admin/edit-abel" method="POST" enctype="multipart/form-data" class="space-y-6">
+                    <input type="hidden" name="id" x-model="editItem.id">
+                    <input type="hidden" name="type" value="Writing">
+                    <input type="hidden" name="difficulty" :value="editItem.difficulty || 'Standard'">
+                    <input type="hidden" name="taskNumber" value="1">
+                    
                     <div>
-                        <label class="text-xs text-gray-500">Type</label>
-                        <select name="type" x-model="editItem.type" class="w-full border p-2 rounded">
-                            <option>Speaking</option>
-                            <option>Reading</option>
-                            <option>Listening</option>
-                            <option>Writing</option>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Upload Image (Optional)</label>
+                        <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md bg-gray-50">
+                            <div class="space-y-1 text-center w-full">
+                                <div x-show="!previewImage && !editItem.image">
+                                    <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                                        <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                    </svg>
+                                    <div class="flex text-sm text-gray-600 justify-center">
+                                        <label class="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none">
+                                            <span>Upload a file</span>
+                                            <input type="file" name="image" accept="image/*" class="sr-only" @change="handleFileUpload">
+                                        </label>
+                                    </div>
+                                </div>
+                                <div x-show="previewImage || editItem.image" class="relative">
+                                    <img :src="previewImage || editItem.image" class="max-h-64 mx-auto rounded-md shadow-sm">
+                                    <button type="button" @click="previewImage = null; editItem.image = null" class="absolute top-0 right-0 bg-red-500 text-white rounded-full p-1 -mt-2 -mr-2 shadow-sm hover:bg-red-600">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                        <textarea name="prompt" placeholder="Enter the task description..." required class="w-full border p-3 rounded h-32" x-model="editItem.prompt"></textarea>
+                    </div>
+                    
+                    <div class="flex justify-end gap-2 pt-4">
+                        <button type="button" @click="showModal = false; editItem = {}; previewImage = null" class="px-4 py-2 border rounded">Cancel</button>
+                        <button type="submit" class="px-4 py-2 bg-purple-600 text-white rounded">Update</button>
+                    </div>
+                </form>
+            </template>
+            
+            <!-- Reading/Listening Interface -->
+            <template x-if="editItem.type === 'Reading' || editItem.type === 'Listening'">
+                <form action="/admin/edit-abel" method="POST" class="space-y-6">
+                    <input type="hidden" name="id" x-model="editItem.id">
+                    <input type="hidden" name="type" :value="editItem.type">
+                    <input type="hidden" name="difficulty" :value="editItem.difficulty || 'Standard'">
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Question</label>
+                        <textarea name="prompt" placeholder="Enter the question..." required class="w-full border p-3 rounded h-24" x-model="editItem.prompt"></textarea>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Option A</label>
+                        <input type="text" name="optionA" placeholder="Enter option A" required class="w-full border p-3 rounded" x-model="editItem.optionA">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Option B</label>
+                        <input type="text" name="optionB" placeholder="Enter option B" required class="w-full border p-3 rounded" x-model="editItem.optionB">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Option C</label>
+                        <input type="text" name="optionC" placeholder="Enter option C" required class="w-full border p-3 rounded" x-model="editItem.optionC">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Option D</label>
+                        <input type="text" name="optionD" placeholder="Enter option D" required class="w-full border p-3 rounded" x-model="editItem.optionD">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Correct Answer</label>
+                        <select name="correctAnswer" x-model="editItem.correctAnswer" required class="w-full border p-3 rounded">
+                            <option value="">Select correct answer</option>
+                            <option value="1">A</option>
+                            <option value="2">B</option>
+                            <option value="3">C</option>
+                            <option value="4">D</option>
                         </select>
                     </div>
+                    
+                    <div class="flex justify-end gap-2 pt-4">
+                        <button type="button" @click="showModal = false; editItem = {}" class="px-4 py-2 border rounded">Cancel</button>
+                        <button type="submit" class="px-4 py-2 bg-purple-600 text-white rounded">Update</button>
+                    </div>
+                </form>
+            </template>
+            
+            <!-- Speaking Interface -->
+            <template x-if="editItem.type === 'Speaking'">
+                <form action="/admin/edit-abel" method="POST" class="space-y-6">
+                    <input type="hidden" name="id" x-model="editItem.id">
+                    <input type="hidden" name="type" value="Speaking">
+                    <input type="hidden" name="difficulty" :value="editItem.difficulty || 'Standard'">
+                    
                     <div>
-                        <label class="text-xs text-gray-500">Difficulty</label>
-                        <select name="difficulty" x-model="editItem.difficulty" class="w-full border p-2 rounded">
-                            <option>Standard</option>
-                            <option>Hard</option>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Part</label>
+                        <select name="part" x-model="editItem.part" required class="w-full border p-3 rounded">
+                            <option value="">Select Part</option>
+                            <option value="1">Part 1: Introduction and Interview</option>
+                            <option value="2">Part 2: Long Turn</option>
+                            <option value="3">Part 3: Discussion</option>
                         </select>
                     </div>
-                </div>
-                <div class="flex justify-end gap-2 mt-4">
-                    <button type="button" @click="showModal = false" class="px-4 py-2 border rounded">Cancel</button>
-                    <button type="submit" class="px-4 py-2 bg-purple-600 text-white rounded">Update</button>
-                </div>
-            </form>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Question Number</label>
+                        <select name="questionNumber" x-model="editItem.questionNumber" required class="w-full border p-3 rounded">
+                            <option value="">Select Question</option>
+                            <option value="1">Question 1</option>
+                            <option value="2">Question 2</option>
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Question</label>
+                        <textarea name="prompt" placeholder="Enter the question..." required class="w-full border p-3 rounded h-32" x-model="editItem.prompt"></textarea>
+                    </div>
+                    
+                    <div class="flex justify-end gap-2 pt-4">
+                        <button type="button" @click="showModal = false; editItem = {}" class="px-4 py-2 border rounded">Cancel</button>
+                        <button type="submit" class="px-4 py-2 bg-purple-600 text-white rounded">Update</button>
+                    </div>
+                </form>
+            </template>
         </div>
     </div>
 

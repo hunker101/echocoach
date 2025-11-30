@@ -41,9 +41,40 @@ router.post('/admin/edit-test', isAuth, adminController.editAssessment);
 router.post('/admin/delete-test', isAuth, adminController.deleteAssessment);
 router.post('/admin/generate-test', isAuth, adminController.generateQuestion);
 
-// ABEL Actions
-router.post('/admin/add-abel', isAuth, adminController.addFinalAssessment);
-router.post('/admin/edit-abel', isAuth, adminController.editFinalAssessment); // NEW
+// ABEL Actions (with file upload support for Writing questions)
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+
+const uploadsDir = path.join(__dirname, '..', 'public', 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        cb(null, uploadsDir);
+    },
+    filename: function (req, file, cb) {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, 'writing-' + uniqueSuffix + path.extname(file.originalname));
+    }
+});
+
+const upload = multer({ 
+    storage: storage,
+    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+    fileFilter: function (req, file, cb) {
+        if (file.mimetype.startsWith('image/')) {
+            cb(null, true);
+        } else {
+            cb(null, false);
+        }
+    }
+});
+
+router.post('/admin/add-abel', isAuth, upload.single('image'), adminController.addFinalAssessment);
+router.post('/admin/edit-abel', isAuth, upload.single('image'), adminController.editFinalAssessment);
 router.post('/admin/delete-abel', isAuth, adminController.deleteFinalAssessment);
 
 module.exports = router;

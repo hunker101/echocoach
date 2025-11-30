@@ -82,23 +82,58 @@
     speakingQuestions: { part1: [], part2: [], part3: [] }, // Questions grouped by part
     currentSpeakingQuestion: { question: '', tags: '' }, // Current question input
     speakingExamSaved: false, // Track if exam has been saved
+    // Regular User Test Bank - Writing
+    regularWritingView: 'cards', // 'cards', 'list', or 'detail'
+    regularWritingSkill: null, // 'writing', 'reading', 'listening', 'speaking'
+    regularWritingExamsList: [], // List of regular writing exams
+    selectedRegularWritingExam: null, // Selected exam for detail view
+    selectedRegularWritingExamId: null, // Store exam ID separately
+    regularWritingTask1: { description: '', image: null, tags: '', previewImage: null },
+    regularWritingTask2: { description: '', image: null, tags: '', previewImage: null },
+    regularWritingExamSaved: false, // Track if exam is saved (read-only mode)
+    regularWritingEditMode: false, // Track if fields are editable
+    // Regular User Test Bank - Reading
+    regularReadingView: 'cards', // 'cards', 'list', or 'detail'
+    regularReadingSkill: null, // 'writing', 'reading', 'listening', 'speaking'
+    regularReadingExamsList: [], // List of regular reading exams
+    selectedRegularReadingExam: null, // Selected exam for detail view
+    selectedRegularReadingExamId: null, // Store exam ID separately
+    regularReadingPassageTitle: '', // Passage title
+    regularReadingPassageContent: '', // Passage content (rich text)
+    regularReadingQuestions: [], // Array of multiple choice questions
+    currentRegularReadingQuestion: { question: '', optionA: '', optionB: '', optionC: '', optionD: '', correctAnswer: 'A', tags: '' },
+    regularReadingExamSaved: false, // Track if exam is saved (read-only mode)
+    regularReadingEditMode: false, // Track if fields are editable
+    // Regular User Test Bank - Listening
+    regularListeningView: 'cards', // 'cards', 'list', or 'detail'
+    regularListeningSkill: null, // 'writing', 'reading', 'listening', 'speaking'
+    regularListeningExamsList: [], // List of regular listening exams
+    selectedRegularListeningExam: null, // Selected exam for detail view
+    selectedRegularListeningExamId: null, // Store exam ID separately
+    regularListeningNarration: '', // Narration/Context field
+    regularListeningScriptBlocks: [], // Array of dialogue blocks { speaker: 'Speaker 1/2', accent: 'British', line: '' }
+    regularListeningQuestions: [], // Array of multiple choice questions
+    currentRegularListeningQuestion: { question: '', optionA: '', optionB: '', optionC: '', optionD: '', correctAnswer: 'A', tags: '' },
+    regularListeningExamSaved: false, // Track if exam is saved (read-only mode)
+    regularListeningEditMode: false, // Track if fields are editable
+    // Regular User Test Bank - Speaking
+    regularSpeakingView: 'cards', // 'cards', 'list', or 'detail'
+    regularSpeakingSkill: null, // 'writing', 'reading', 'listening', 'speaking'
+    regularSpeakingExamsList: [], // List of regular speaking exams
+    selectedRegularSpeakingExam: null, // Selected exam for detail view
+    selectedRegularSpeakingExamId: null, // Store exam ID separately
+    regularSpeakingModuleContent: '', // Examiner Instructions / Module Content (rich text)
+    regularSpeakingCurrentPart: 1, // Currently selected part (1, 2, or 3)
+    regularSpeakingQuestions: { part1: [], part2: [], part3: [] }, // Questions grouped by part
+    currentRegularSpeakingQuestion: { question: '', tags: '' }, // Current question input
+    regularSpeakingExamSaved: false, // Track if exam is saved (read-only mode)
+    regularSpeakingEditMode: false, // Track if fields are editable
     mockExamView: (() => {
         const urlParams = new URLSearchParams(window.location.search);
         const skill = urlParams.get('skill');
         return skill ? 'skill' : 'list';
     })(), // 'list' or 'skill'
     mockExamSkill: (() => {
-        const urlParams = new URLSearchParams(window.location.search);
-        return urlParams.get('skill') || null;
-    })(), // 'writing', 'reading', 'listening', 'speaking'
-    // Regular User Test Bank state (separate from IELTS)
-    regularExamsList: [],
-    regularExamView: (() => {
-        const urlParams = new URLSearchParams(window.location.search);
-        const skill = urlParams.get('skill');
-        return skill ? 'skill' : 'list';
-    })(), // 'list' or 'skill'
-    regularExamSkill: (() => {
         const urlParams = new URLSearchParams(window.location.search);
         return urlParams.get('skill') || null;
     })(), // 'writing', 'reading', 'listening', 'speaking'
@@ -871,6 +906,650 @@
             alert('Error saving writing exam: ' + error.message);
         });
     },
+    // Regular Writing Exams Functions
+    initRegularWritingExams() {
+        const regularWritingExamsElement = document.getElementById('regular-writing-exams-data');
+        if (regularWritingExamsElement && regularWritingExamsElement.textContent) {
+            try {
+                const data = JSON.parse(regularWritingExamsElement.textContent) || [];
+                this.regularWritingExamsList = Array.isArray(data) ? data : [];
+            } catch (e) {
+                console.error('Error parsing regular writing exams data:', e);
+                this.regularWritingExamsList = [];
+            }
+        } else {
+            this.regularWritingExamsList = [];
+        }
+    },
+    openRegularWritingExamDetail(exam) {
+        this.selectedRegularWritingExam = exam;
+        this.selectedRegularWritingExamId = exam.id;
+        this.regularWritingView = 'detail';
+        
+        // Load existing tasks if available
+        if (exam.task1) {
+            this.regularWritingTask1 = {
+                description: exam.task1.description || '',
+                image: exam.task1.image || null,
+                tags: exam.task1.tags || '',
+                previewImage: exam.task1.image || null
+            };
+        } else {
+            this.regularWritingTask1 = { description: '', image: null, tags: '', previewImage: null };
+        }
+        if (exam.task2) {
+            this.regularWritingTask2 = {
+                description: exam.task2.description || '',
+                image: exam.task2.image || null,
+                tags: exam.task2.tags || '',
+                previewImage: exam.task2.image || null
+            };
+        } else {
+            this.regularWritingTask2 = { description: '', image: null, tags: '', previewImage: null };
+        }
+        
+        // Check if exam has been saved before (has task data)
+        this.regularWritingExamSaved = !!(exam.task1 || exam.task2);
+        this.regularWritingEditMode = !this.regularWritingExamSaved; // New exams start in edit mode
+    },
+    closeRegularWritingExamDetail() {
+        this.regularWritingView = 'list';
+        this.selectedRegularWritingExam = null;
+        this.selectedRegularWritingExamId = null;
+        this.regularWritingTask1 = { description: '', image: null, tags: '', previewImage: null };
+        this.regularWritingTask2 = { description: '', image: null, tags: '', previewImage: null };
+        this.regularWritingExamSaved = false;
+        this.regularWritingEditMode = false;
+    },
+    handleRegularWritingTaskImageUpload(event, taskNumber) {
+        const file = event.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                if (taskNumber === 1) {
+                    this.regularWritingTask1.previewImage = e.target.result;
+                    this.regularWritingTask1.image = file;
+                } else {
+                    this.regularWritingTask2.previewImage = e.target.result;
+                    this.regularWritingTask2.image = file;
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+    },
+    saveRegularWritingExam() {
+        if (!this.selectedRegularWritingExamId) {
+            alert('Error: Exam ID is missing');
+            return;
+        }
+        
+        // Prepare form data
+        const formData = new FormData();
+        formData.append('examId', this.selectedRegularWritingExamId);
+        formData.append('task1Description', this.regularWritingTask1.description || '');
+        formData.append('task1Tags', this.regularWritingTask1.tags || '');
+        formData.append('task2Description', this.regularWritingTask2.description || '');
+        formData.append('task2Tags', this.regularWritingTask2.tags || '');
+        
+        // Append image files if they exist
+        if (this.regularWritingTask1.image && this.regularWritingTask1.image instanceof File) {
+            formData.append('task1Image', this.regularWritingTask1.image);
+        }
+        if (this.regularWritingTask2.image && this.regularWritingTask2.image instanceof File) {
+            formData.append('task2Image', this.regularWritingTask2.image);
+        }
+        
+        // Submit to server
+        fetch('/admin/save-regular-writing-exam', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.text().then(text => {
+                    throw new Error(text || 'Server error');
+                });
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                this.regularWritingExamSaved = true;
+                this.regularWritingEditMode = false; // Switch to read-only mode
+                
+                // Update the exam in the list
+                const index = this.regularWritingExamsList.findIndex(q => q.id == this.selectedRegularWritingExamId);
+                if (index > -1) {
+                    this.regularWritingExamsList[index].task1 = {
+                        description: this.regularWritingTask1.description,
+                        tags: this.regularWritingTask1.tags,
+                        image: data.task1Image || this.regularWritingTask1.image || null
+                    };
+                    this.regularWritingExamsList[index].task2 = {
+                        description: this.regularWritingTask2.description,
+                        tags: this.regularWritingTask2.tags,
+                        image: data.task2Image || this.regularWritingTask2.image || null
+                    };
+                    // Update preview images with saved image paths
+                    if (data.task1Image) {
+                        this.regularWritingTask1.previewImage = data.task1Image;
+                        this.regularWritingTask1.image = data.task1Image;
+                    }
+                    if (data.task2Image) {
+                        this.regularWritingTask2.previewImage = data.task2Image;
+                        this.regularWritingTask2.image = data.task2Image;
+                    }
+                    this.selectedRegularWritingExam = this.regularWritingExamsList[index];
+                }
+                alert('Writing exam saved successfully!');
+            } else {
+                alert('Error saving writing exam: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error saving writing exam: ' + error.message);
+        });
+    },
+    // Regular Reading Exams Functions
+    initRegularReadingExams() {
+        const regularReadingExamsElement = document.getElementById('regular-reading-exams-data');
+        if (regularReadingExamsElement && regularReadingExamsElement.textContent) {
+            try {
+                const data = JSON.parse(regularReadingExamsElement.textContent) || [];
+                this.regularReadingExamsList = Array.isArray(data) ? data : [];
+            } catch (e) {
+                console.error('Error parsing regular reading exams data:', e);
+                this.regularReadingExamsList = [];
+            }
+        } else {
+            this.regularReadingExamsList = [];
+        }
+    },
+    openRegularReadingExamDetail(exam) {
+        this.selectedRegularReadingExam = exam;
+        this.selectedRegularReadingExamId = exam.id;
+        this.regularReadingView = 'detail';
+        
+        // Load existing passage and questions if available
+        if (exam.passageTitle) {
+            this.regularReadingPassageTitle = exam.passageTitle;
+        } else {
+            this.regularReadingPassageTitle = '';
+        }
+        if (exam.passageContent) {
+            this.regularReadingPassageContent = exam.passageContent;
+        } else {
+            this.regularReadingPassageContent = '';
+        }
+        if (exam.questions && Array.isArray(exam.questions)) {
+            this.regularReadingQuestions = exam.questions;
+        } else {
+            this.regularReadingQuestions = [];
+        }
+        
+        // Check if exam has been saved before (has passage or questions)
+        this.regularReadingExamSaved = !!(exam.passageTitle || exam.passageContent || (exam.questions && exam.questions.length > 0));
+        this.regularReadingEditMode = !this.regularReadingExamSaved; // New exams start in edit mode
+        
+        // Reset current question form
+        this.currentRegularReadingQuestion = { question: '', optionA: '', optionB: '', optionC: '', optionD: '', correctAnswer: 'A', tags: '' };
+    },
+    closeRegularReadingExamDetail() {
+        this.regularReadingView = 'list';
+        this.selectedRegularReadingExam = null;
+        this.selectedRegularReadingExamId = null;
+        this.regularReadingPassageTitle = '';
+        this.regularReadingPassageContent = '';
+        this.regularReadingQuestions = [];
+        this.currentRegularReadingQuestion = { question: '', optionA: '', optionB: '', optionC: '', optionD: '', correctAnswer: 'A', tags: '' };
+        this.regularReadingExamSaved = false;
+        this.regularReadingEditMode = false;
+    },
+    addRegularReadingQuestion() {
+        if (!this.currentRegularReadingQuestion.question || !this.currentRegularReadingQuestion.optionA) {
+            alert('Please fill in at least the question and option A');
+            return;
+        }
+        
+        const newQuestion = {
+            id: Date.now(),
+            question: this.currentRegularReadingQuestion.question,
+            optionA: this.currentRegularReadingQuestion.optionA,
+            optionB: this.currentRegularReadingQuestion.optionB || '',
+            optionC: this.currentRegularReadingQuestion.optionC || '',
+            optionD: this.currentRegularReadingQuestion.optionD || '',
+            correctAnswer: this.currentRegularReadingQuestion.correctAnswer || 'A',
+            tags: this.currentRegularReadingQuestion.tags || ''
+        };
+        
+        this.regularReadingQuestions.push(newQuestion);
+        
+        // Reset form
+        this.currentRegularReadingQuestion = { question: '', optionA: '', optionB: '', optionC: '', optionD: '', correctAnswer: 'A', tags: '' };
+    },
+    editRegularReadingQuestion(index) {
+        const question = this.regularReadingQuestions[index];
+        this.currentRegularReadingQuestion = {
+            question: question.question || '',
+            optionA: question.optionA || '',
+            optionB: question.optionB || '',
+            optionC: question.optionC || '',
+            optionD: question.optionD || '',
+            correctAnswer: question.correctAnswer || 'A',
+            tags: question.tags || ''
+        };
+        // Remove the question from the list (will be re-added when user clicks Add Question)
+        this.removeRegularReadingQuestion(index);
+    },
+    removeRegularReadingQuestion(index) {
+        this.regularReadingQuestions.splice(index, 1);
+    },
+    saveRegularReadingExam() {
+        if (!this.selectedRegularReadingExamId) {
+            alert('Error: Exam ID is missing');
+            return;
+        }
+        
+        // Prepare data
+        const examData = {
+            examId: this.selectedRegularReadingExamId,
+            passageTitle: this.regularReadingPassageTitle || '',
+            passageContent: this.regularReadingPassageContent || '',
+            questions: this.regularReadingQuestions
+        };
+        
+        // Submit to server
+        fetch('/admin/save-regular-reading-exam', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(examData)
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.text().then(text => {
+                    throw new Error(text || 'Server error');
+                });
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                this.regularReadingExamSaved = true;
+                this.regularReadingEditMode = false; // Switch to read-only mode
+                
+                // Update the exam in the list
+                const index = this.regularReadingExamsList.findIndex(q => q.id == this.selectedRegularReadingExamId);
+                if (index > -1) {
+                    this.regularReadingExamsList[index].passageTitle = this.regularReadingPassageTitle;
+                    this.regularReadingExamsList[index].passageContent = this.regularReadingPassageContent;
+                    this.regularReadingExamsList[index].questions = this.regularReadingQuestions;
+                    this.selectedRegularReadingExam = this.regularReadingExamsList[index];
+                }
+                alert('Reading exam saved successfully!');
+            } else {
+                alert('Error saving reading exam: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error saving reading exam: ' + error.message);
+        });
+    },
+    // Regular Listening Exams Functions
+    initRegularListeningExams() {
+        const regularListeningExamsElement = document.getElementById('regular-listening-exams-data');
+        if (regularListeningExamsElement && regularListeningExamsElement.textContent) {
+            try {
+                const data = JSON.parse(regularListeningExamsElement.textContent) || [];
+                this.regularListeningExamsList = Array.isArray(data) ? data : [];
+            } catch (e) {
+                console.error('Error parsing regular listening exams data:', e);
+                this.regularListeningExamsList = [];
+            }
+        } else {
+            this.regularListeningExamsList = [];
+        }
+    },
+    openRegularListeningExamDetail(exam) {
+        this.selectedRegularListeningExam = exam;
+        this.selectedRegularListeningExamId = exam.id;
+        this.regularListeningView = 'detail';
+        
+        // Load existing data if available
+        if (exam.narration) {
+            this.regularListeningNarration = exam.narration;
+        } else {
+            this.regularListeningNarration = '';
+        }
+        if (exam.scriptBlocks && Array.isArray(exam.scriptBlocks)) {
+            this.regularListeningScriptBlocks = exam.scriptBlocks;
+        } else {
+            this.regularListeningScriptBlocks = [];
+        }
+        if (exam.questions && Array.isArray(exam.questions)) {
+            this.regularListeningQuestions = exam.questions;
+        } else {
+            this.regularListeningQuestions = [];
+        }
+        
+        // Check if exam has been saved before
+        this.regularListeningExamSaved = !!(exam.narration || (exam.scriptBlocks && exam.scriptBlocks.length > 0) || (exam.questions && exam.questions.length > 0));
+        this.regularListeningEditMode = !this.regularListeningExamSaved; // New exams start in edit mode
+        
+        // Reset current question form
+        this.currentRegularListeningQuestion = { question: '', optionA: '', optionB: '', optionC: '', optionD: '', correctAnswer: 'A', tags: '' };
+    },
+    closeRegularListeningExamDetail() {
+        this.regularListeningView = 'list';
+        this.selectedRegularListeningExam = null;
+        this.selectedRegularListeningExamId = null;
+        this.regularListeningNarration = '';
+        this.regularListeningScriptBlocks = [];
+        this.regularListeningQuestions = [];
+        this.currentRegularListeningQuestion = { question: '', optionA: '', optionB: '', optionC: '', optionD: '', correctAnswer: 'A', tags: '' };
+        this.regularListeningExamSaved = false;
+        this.regularListeningEditMode = false;
+    },
+    addRegularListeningScriptBlock() {
+        // Determine next speaker based on last block
+        let nextSpeaker = 'Speaker 1';
+        if (this.regularListeningScriptBlocks.length > 0) {
+            const lastBlock = this.regularListeningScriptBlocks[this.regularListeningScriptBlocks.length - 1];
+            if (lastBlock.speaker === 'Speaker 1') {
+                nextSpeaker = 'Speaker 2';
+            } else {
+                nextSpeaker = 'Speaker 1';
+            }
+        }
+        
+        const newBlock = {
+            id: Date.now(),
+            speaker: nextSpeaker,
+            accent: 'British',
+            line: ''
+        };
+        
+        this.regularListeningScriptBlocks.push(newBlock);
+    },
+    removeRegularListeningScriptBlock(index) {
+        this.regularListeningScriptBlocks.splice(index, 1);
+    },
+    addRegularListeningQuestion() {
+        if (!this.currentRegularListeningQuestion.question || !this.currentRegularListeningQuestion.optionA) {
+            alert('Please fill in at least the question and option A');
+            return;
+        }
+        
+        const newQuestion = {
+            id: Date.now(),
+            question: this.currentRegularListeningQuestion.question,
+            optionA: this.currentRegularListeningQuestion.optionA,
+            optionB: this.currentRegularListeningQuestion.optionB || '',
+            optionC: this.currentRegularListeningQuestion.optionC || '',
+            optionD: this.currentRegularListeningQuestion.optionD || '',
+            correctAnswer: this.currentRegularListeningQuestion.correctAnswer || 'A',
+            tags: this.currentRegularListeningQuestion.tags || ''
+        };
+        
+        this.regularListeningQuestions.push(newQuestion);
+        
+        // Reset form
+        this.currentRegularListeningQuestion = { question: '', optionA: '', optionB: '', optionC: '', optionD: '', correctAnswer: 'A', tags: '' };
+    },
+    editRegularListeningQuestion(index) {
+        const question = this.regularListeningQuestions[index];
+        this.currentRegularListeningQuestion = {
+            question: question.question || '',
+            optionA: question.optionA || '',
+            optionB: question.optionB || '',
+            optionC: question.optionC || '',
+            optionD: question.optionD || '',
+            correctAnswer: question.correctAnswer || 'A',
+            tags: question.tags || ''
+        };
+        // Remove the question from the list (will be re-added when user clicks Add Question)
+        this.removeRegularListeningQuestion(index);
+    },
+    removeRegularListeningQuestion(index) {
+        this.regularListeningQuestions.splice(index, 1);
+    },
+    saveRegularListeningExam() {
+        if (!this.selectedRegularListeningExamId) {
+            alert('Error: Exam ID is missing');
+            return;
+        }
+        
+        // Prepare data
+        const examData = {
+            examId: this.selectedRegularListeningExamId,
+            narration: this.regularListeningNarration || '',
+            scriptBlocks: this.regularListeningScriptBlocks,
+            questions: this.regularListeningQuestions
+        };
+        
+        // Submit to server
+        fetch('/admin/save-regular-listening-exam', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(examData)
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.text().then(text => {
+                    throw new Error(text || 'Server error');
+                });
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                this.regularListeningExamSaved = true;
+                this.regularListeningEditMode = false; // Switch to read-only mode
+                
+                // Update the exam in the list
+                const index = this.regularListeningExamsList.findIndex(q => q.id == this.selectedRegularListeningExamId);
+                if (index > -1) {
+                    this.regularListeningExamsList[index].narration = this.regularListeningNarration;
+                    this.regularListeningExamsList[index].scriptBlocks = this.regularListeningScriptBlocks;
+                    this.regularListeningExamsList[index].questions = this.regularListeningQuestions;
+                    this.selectedRegularListeningExam = this.regularListeningExamsList[index];
+                }
+                alert('Listening exam saved successfully!');
+            } else {
+                alert('Error saving listening exam: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error saving listening exam: ' + error.message);
+        });
+    },
+    // Regular Speaking Exams Functions
+    initRegularSpeakingExams() {
+        const regularSpeakingExamsElement = document.getElementById('regular-speaking-exams-data');
+        if (regularSpeakingExamsElement && regularSpeakingExamsElement.textContent) {
+            try {
+                const data = JSON.parse(regularSpeakingExamsElement.textContent) || [];
+                this.regularSpeakingExamsList = Array.isArray(data) ? data : [];
+            } catch (e) {
+                console.error('Error parsing regular speaking exams data:', e);
+                this.regularSpeakingExamsList = [];
+            }
+        } else {
+            this.regularSpeakingExamsList = [];
+        }
+    },
+    openRegularSpeakingExamDetail(exam) {
+        this.selectedRegularSpeakingExam = exam;
+        this.selectedRegularSpeakingExamId = exam.id;
+        this.regularSpeakingView = 'detail';
+        
+        // Load existing data if available
+        if (exam.moduleContent) {
+            this.regularSpeakingModuleContent = exam.moduleContent;
+        } else {
+            this.regularSpeakingModuleContent = '';
+        }
+        if (exam.questions && exam.questions.part1) {
+            this.regularSpeakingQuestions.part1 = exam.questions.part1 || [];
+        } else {
+            this.regularSpeakingQuestions.part1 = [];
+        }
+        if (exam.questions && exam.questions.part2) {
+            this.regularSpeakingQuestions.part2 = exam.questions.part2 || [];
+        } else {
+            this.regularSpeakingQuestions.part2 = [];
+        }
+        if (exam.questions && exam.questions.part3) {
+            this.regularSpeakingQuestions.part3 = exam.questions.part3 || [];
+        } else {
+            this.regularSpeakingQuestions.part3 = [];
+        }
+        
+        // Check if exam has been saved before
+        this.regularSpeakingExamSaved = !!(exam.moduleContent || (exam.questions && (exam.questions.part1?.length > 0 || exam.questions.part2?.length > 0 || exam.questions.part3?.length > 0)));
+        this.regularSpeakingEditMode = !this.regularSpeakingExamSaved; // New exams start in edit mode
+        
+        // Reset current question form
+        this.currentRegularSpeakingQuestion = { question: '', tags: '' };
+        this.regularSpeakingCurrentPart = 1; // Start with Part 1
+    },
+    closeRegularSpeakingExamDetail() {
+        this.regularSpeakingView = 'list';
+        this.selectedRegularSpeakingExam = null;
+        this.selectedRegularSpeakingExamId = null;
+        this.regularSpeakingModuleContent = '';
+        this.regularSpeakingQuestions = { part1: [], part2: [], part3: [] };
+        this.currentRegularSpeakingQuestion = { question: '', tags: '' };
+        this.regularSpeakingCurrentPart = 1;
+        this.regularSpeakingExamSaved = false;
+        this.regularSpeakingEditMode = false;
+    },
+    getRegularSpeakingQuestionsForPart(part) {
+        if (part === 1) return this.regularSpeakingQuestions.part1 || [];
+        if (part === 2) return this.regularSpeakingQuestions.part2 || [];
+        if (part === 3) return this.regularSpeakingQuestions.part3 || [];
+        return [];
+    },
+    addRegularSpeakingQuestion() {
+        if (!this.currentRegularSpeakingQuestion.question) {
+            alert('Please enter a question');
+            return;
+        }
+        
+        const newQuestion = {
+            id: Date.now(),
+            question: this.currentRegularSpeakingQuestion.question,
+            tags: this.currentRegularSpeakingQuestion.tags || '',
+            partId: this.regularSpeakingCurrentPart
+        };
+        
+        // Add to the appropriate part array
+        if (this.regularSpeakingCurrentPart === 1) {
+            this.regularSpeakingQuestions.part1.push(newQuestion);
+        } else if (this.regularSpeakingCurrentPart === 2) {
+            this.regularSpeakingQuestions.part2.push(newQuestion);
+        } else if (this.regularSpeakingCurrentPart === 3) {
+            this.regularSpeakingQuestions.part3.push(newQuestion);
+        }
+        
+        // Reset form
+        this.currentRegularSpeakingQuestion = { question: '', tags: '' };
+    },
+    editRegularSpeakingQuestion(part, index) {
+        let question;
+        if (part === 1) {
+            question = this.regularSpeakingQuestions.part1[index];
+        } else if (part === 2) {
+            question = this.regularSpeakingQuestions.part2[index];
+        } else if (part === 3) {
+            question = this.regularSpeakingQuestions.part3[index];
+        }
+        
+        if (question) {
+            this.currentRegularSpeakingQuestion = {
+                question: question.question || '',
+                tags: question.tags || ''
+            };
+            // Switch to the correct part tab
+            this.regularSpeakingCurrentPart = part;
+            // Remove the question from the list (will be re-added when user clicks Add Prompt)
+            this.removeRegularSpeakingQuestion(part, index);
+        }
+    },
+    removeRegularSpeakingQuestion(part, index) {
+        if (part === 1) {
+            this.regularSpeakingQuestions.part1.splice(index, 1);
+        } else if (part === 2) {
+            this.regularSpeakingQuestions.part2.splice(index, 1);
+        } else if (part === 3) {
+            this.regularSpeakingQuestions.part3.splice(index, 1);
+        }
+    },
+    saveRegularSpeakingExam() {
+        if (!this.selectedRegularSpeakingExamId) {
+            alert('Error: Exam ID is missing');
+            return;
+        }
+        
+        // Prepare data
+        const examData = {
+            examId: this.selectedRegularSpeakingExamId,
+            moduleContent: this.regularSpeakingModuleContent || '',
+            questions: {
+                part1: this.regularSpeakingQuestions.part1 || [],
+                part2: this.regularSpeakingQuestions.part2 || [],
+                part3: this.regularSpeakingQuestions.part3 || []
+            }
+        };
+        
+        // Submit to server
+        fetch('/admin/save-regular-speaking-exam', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(examData)
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.text().then(text => {
+                    throw new Error(text || 'Server error');
+                });
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                this.regularSpeakingExamSaved = true;
+                this.regularSpeakingEditMode = false; // Switch to read-only mode
+                
+                // Update the exam in the list
+                const index = this.regularSpeakingExamsList.findIndex(q => q.id == this.selectedRegularSpeakingExamId);
+                if (index > -1) {
+                    this.regularSpeakingExamsList[index].moduleContent = this.regularSpeakingModuleContent;
+                    this.regularSpeakingExamsList[index].questions = {
+                        part1: this.regularSpeakingQuestions.part1,
+                        part2: this.regularSpeakingQuestions.part2,
+                        part3: this.regularSpeakingQuestions.part3
+                    };
+                    this.selectedRegularSpeakingExam = this.regularSpeakingExamsList[index];
+                }
+                alert('Speaking exam saved successfully!');
+            } else {
+                alert('Error saving speaking exam: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error saving speaking exam: ' + error.message);
+        });
+    },
     initTags() {
         const tagsDataElement = document.getElementById('tags-data');
         if (tagsDataElement) {
@@ -890,42 +1569,6 @@
         } else {
             this.finalAssessmentsList = [];
         }
-    },
-    // Regular User Test Bank initialization (separate from IELTS)
-    initRegularExams() {
-        const regularExamsElement = document.getElementById('regular-exams-data');
-        if (regularExamsElement && regularExamsElement.textContent) {
-            try {
-                const data = JSON.parse(regularExamsElement.textContent) || [];
-                this.regularExamsList = Array.isArray(data) ? data : [];
-            } catch (e) {
-                console.error('Error parsing regular exams data:', e);
-                this.regularExamsList = [];
-            }
-        } else {
-            this.regularExamsList = [];
-        }
-    },
-    getFilteredRegularExamQuestions() {
-        if (this.regularExamsList.length === 0) {
-            this.initRegularExams();
-        }
-        
-        if (!this.regularExamSkill) {
-            return this.regularExamsList || [];
-        }
-        
-        if (!this.regularExamsList || this.regularExamsList.length === 0) {
-            return [];
-        }
-        
-        const skillType = (this.regularExamSkill || '').toLowerCase();
-        const filtered = this.regularExamsList.filter(q => {
-            if (!q || !q.type) return false;
-            const questionType = (q.type || '').toLowerCase();
-            return questionType === skillType;
-        });
-        return filtered;
     },
     getFilteredMockExamQuestions() {
         // Always initialize data first
@@ -1264,10 +1907,20 @@
     
     <!-- Final Assessments Data (hidden, for Alpine.js initialization) -->
     <script id="final-assessments-data" type="application/json"><%- JSON.stringify(finalAssessments || []) %></script>
-    <!-- Regular User Test Bank Data (separate from IELTS) -->
-    <script id="regular-exams-data" type="application/json"><%- JSON.stringify(regularExams || []) %></script>
     
-
+    <!-- Regular Writing Exams Data (hidden, for Alpine.js initialization) -->
+    <script id="regular-writing-exams-data" type="application/json"><%- JSON.stringify(regularWritingExams || []) %></script>
+    
+    <!-- Regular Reading Exams Data (hidden, for Alpine.js initialization) -->
+    <script id="regular-reading-exams-data" type="application/json"><%- JSON.stringify(regularReadingExams || []) %></script>
+    
+    <!-- Regular Listening Exams Data (hidden, for Alpine.js initialization) -->
+    <script id="regular-listening-exams-data" type="application/json"><%- JSON.stringify(regularListeningExams || []) %></script>
+    
+    <!-- Regular Speaking Exams Data (hidden, for Alpine.js initialization) -->
+    <script id="regular-speaking-exams-data" type="application/json"><%- JSON.stringify(regularSpeakingExams || []) %></script>
+    
+    
     <!-- Top Navigation -->
     <nav class="bg-white shadow-sm border-b border-gray-200 fixed w-full z-30">
         <div class="px-4 sm:px-6 lg:px-8">
@@ -1312,7 +1965,7 @@
                     </button>
                 </div>
                 <div x-show="assessmentCenterOpen" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 transform -translate-y-2" x-transition:enter-end="opacity-100 transform translate-y-0" x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100 transform translate-y-0" x-transition:leave-end="opacity-0 transform -translate-y-2">
-                    <button @click="currentTab = 'regular'" :class="currentTab === 'regular' ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50'" class="w-full flex items-center space-x-3 px-4 py-3 rounded-lg font-medium transition">
+                    <button @click="currentTab = 'testbank'" :class="currentTab === 'testbank' ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50'" class="w-full flex items-center space-x-3 px-4 py-3 rounded-lg font-medium transition">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
                         <span>Regular User Test Bank</span>
                     </button>
@@ -1840,233 +2493,803 @@
                 </div>
             </div>
 
-            <!-- 3. REGULAR USER TEST BANK TAB (Mirrors IELTS Mock Exam) -->
-            <div x-show="currentTab === 'regular'" 
-                 x-cloak 
-                 x-transition.opacity 
-                 x-init="
-                     initRegularExams();
-                     const urlParams = new URLSearchParams(window.location.search);
-                     const skill = urlParams.get('skill');
-                     if (skill) { 
-                         regularExamSkill = skill;
-                         regularExamView = 'skill';
-                     } else {
-                         regularExamView = 'list';
-                         regularExamSkill = null;
-                     }
-                 "
-                 x-effect="
-                     if (currentTab === 'regular') { 
-                         initRegularExams();
-                         const urlParams = new URLSearchParams(window.location.search);
-                         const skill = urlParams.get('skill');
-                         if (skill && regularExamSkill !== skill) {
-                             regularExamSkill = skill;
-                             regularExamView = 'skill';
-                         } else if (!skill && regularExamView !== 'list') {
-                             regularExamView = 'list';
-                             regularExamSkill = null;
-                         }
-                     }
-                 ">
-                <!-- Skill Cards View -->
-                <template x-if="regularExamView === 'list'">
+            <!-- 3. TEST BANK TAB -->
+            <div x-show="currentTab === 'testbank'" x-cloak x-transition.opacity x-init="initRegularWritingExams(); initRegularReadingExams(); initRegularListeningExams(); initRegularSpeakingExams()">
+                <!-- Cards View (Default) -->
+                <template x-if="regularWritingView === 'cards' && regularReadingView === 'cards' && regularListeningView === 'cards' && regularSpeakingView === 'cards'">
                     <div>
                         <div class="flex justify-between items-center mb-6">
                             <h2 class="text-2xl font-bold text-gray-800">Regular User Test Bank</h2>
                         </div>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div @click="initRegularExams(); regularExamView = 'skill'; regularExamSkill = 'writing'; window.history.pushState({}, '', '/admin/manage?tab=regular&skill=writing');" class="flex items-center gap-4 cursor-pointer group hover:bg-blue-50 p-4 rounded-xl transition border border-gray-100 hover:border-blue-200 bg-gray-50">
-                                <div class="bg-blue-100 p-3 rounded-full text-blue-600"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg></div>
-                                <div><h4 class="font-bold text-gray-800 text-lg group-hover:text-blue-700 mb-1">Writing</h4><p class="text-sm text-gray-500">Develop coherent and well-structured responses</p></div>
+                            <div @click="regularWritingView = 'list'; regularWritingSkill = 'writing'; initRegularWritingExams()" class="flex items-center gap-4 cursor-pointer group hover:bg-blue-50 p-4 rounded-xl transition border border-gray-100 hover:border-blue-200 bg-gray-50">
+                                <div class="bg-blue-100 p-3 rounded-full text-blue-600">
+                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                                    </svg>
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-gray-800 text-lg group-hover:text-blue-700 mb-1">Writing</h4>
+                                    <p class="text-sm text-gray-500">Develop coherent and well-structured responses</p>
+                                </div>
                             </div>
-                            <div @click="initRegularExams(); regularExamView = 'skill'; regularExamSkill = 'reading'; window.history.pushState({}, '', '/admin/manage?tab=regular&skill=reading');" class="flex items-center gap-4 cursor-pointer group hover:bg-blue-50 p-4 rounded-xl transition border border-gray-100 hover:border-blue-200 bg-gray-50">
-                                <div class="bg-green-100 p-3 rounded-full text-green-600"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg></div>
-                                <div><h4 class="font-bold text-gray-800 text-lg group-hover:text-blue-700">Reading</h4><p class="text-sm text-gray-500">Boost your comprehension and skimming skills</p></div>
+                            <div @click="regularReadingView = 'list'; regularReadingSkill = 'reading'; initRegularReadingExams()" class="flex items-center gap-4 cursor-pointer group hover:bg-blue-50 p-4 rounded-xl transition border border-gray-100 hover:border-blue-200 bg-gray-50">
+                                <div class="bg-green-100 p-3 rounded-full text-green-600">
+                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
+                                    </svg>
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-gray-800 text-lg group-hover:text-blue-700">Reading</h4>
+                                    <p class="text-sm text-gray-500">Boost your comprehension and skimming skills</p>
+                                </div>
                             </div>
-                            <div @click="initRegularExams(); regularExamView = 'skill'; regularExamSkill = 'listening'; window.history.pushState({}, '', '/admin/manage?tab=regular&skill=listening');" class="flex items-center gap-4 cursor-pointer group hover:bg-blue-50 p-4 rounded-xl transition border border-gray-100 hover:border-blue-200 bg-gray-50">
-                                <div class="bg-purple-100 p-3 rounded-full text-purple-600"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"></path></svg></div>
-                                <div><h4 class="font-bold text-gray-800 text-lg group-hover:text-blue-700">Listening</h4><p class="text-sm text-gray-500">Enhance your focus and audio understanding</p></div>
+                            <div @click="regularListeningView = 'list'; regularListeningSkill = 'listening'; initRegularListeningExams()" class="flex items-center gap-4 cursor-pointer group hover:bg-blue-50 p-4 rounded-xl transition border border-gray-100 hover:border-blue-200 bg-gray-50">
+                                <div class="bg-purple-100 p-3 rounded-full text-purple-600">
+                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"></path>
+                                    </svg>
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-gray-800 text-lg group-hover:text-blue-700">Listening</h4>
+                                    <p class="text-sm text-gray-500">Enhance your focus and audio understanding</p>
+                                </div>
                             </div>
-                            <div @click="initRegularExams(); regularExamView = 'skill'; regularExamSkill = 'speaking'; window.history.pushState({}, '', '/admin/manage?tab=regular&skill=speaking');" class="flex items-center gap-4 cursor-pointer group hover:bg-blue-50 p-4 rounded-xl transition border border-gray-100 hover:border-blue-200 bg-gray-50">
-                                <div class="bg-yellow-100 p-3 rounded-full text-yellow-600"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg></div>
-                                <div><h4 class="font-bold text-gray-800 text-lg group-hover:text-blue-700">Speaking</h4><p class="text-sm text-gray-500">Build fluency, improve pronunciation, and speak with clarity</p></div>
+                            <div @click="regularSpeakingView = 'list'; regularSpeakingSkill = 'speaking'; initRegularSpeakingExams()" class="flex items-center gap-4 cursor-pointer group hover:bg-blue-50 p-4 rounded-xl transition border border-gray-100 hover:border-blue-200 bg-gray-50">
+                                <div class="bg-yellow-100 p-3 rounded-full text-yellow-600">
+                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
+                                    </svg>
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-gray-800 text-lg group-hover:text-blue-700">Speaking</h4>
+                                    <p class="text-sm text-gray-500">Build fluency, improve pronunciation, and speak with clarity</p>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </template>
 
-                <!-- Skill Questions View (Same structure as IELTS but uses regularExams) -->
-                <template x-if="regularExamView === 'skill'">
-                    <div x-effect="initRegularExams()">
+                <!-- Regular Reading List View -->
+                <template x-if="regularReadingView === 'list' && regularReadingSkill === 'reading'">
+                    <div>
                         <div class="flex justify-between items-center mb-6">
                             <div class="flex items-center gap-3">
-                                <button @click="regularExamView = 'list'; regularExamSkill = null; window.history.pushState({}, '', '/admin/manage?tab=regular');" class="text-gray-500 hover:text-gray-800 p-2 hover:bg-gray-100 rounded-full transition">
-                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+                                <button @click="regularReadingView = 'cards'; regularReadingSkill = null" class="text-gray-500 hover:text-gray-800 p-2 hover:bg-gray-100 rounded-full transition">
+                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                                    </svg>
                                 </button>
-                                <h2 class="text-2xl font-bold text-gray-800" x-text="regularExamSkill === 'writing' ? 'Writing exam questions' : regularExamSkill === 'reading' ? 'Reading exam questions' : regularExamSkill === 'listening' ? 'Listening exam questions' : regularExamSkill === 'speaking' ? 'Speaking exam questions' : regularExamSkill.charAt(0).toUpperCase() + regularExamSkill.slice(1)"></h2>
+                                <h2 class="text-2xl font-bold text-gray-800">Reading Exams</h2>
                             </div>
-                            <button x-show="!((regularExamSkill === 'writing' && regularWritingExamView === 'detail') || (regularExamSkill === 'reading' && regularReadingExamView === 'detail') || (regularExamSkill === 'listening' && regularListeningExamView === 'detail'))" @click="showModal = 'addRegular'; editItem = { type: regularExamSkill.charAt(0).toUpperCase() + regularExamSkill.slice(1) }; previewImage = null" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition flex items-center gap-2">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-                                <span x-text="(regularExamSkill === 'writing' || regularExamSkill === 'reading' || regularExamSkill === 'listening') ? 'Add Exam' : '+ Add Question'"></span>
+                            <button @click="showModal = 'addRegularReading'; editItem = {}" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition flex items-center gap-2">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                                </svg>
+                                <span>Add Reading Exam</span>
                             </button>
                         </div>
                         <div class="space-y-4">
-                            <template x-for="(question, index) in getFilteredRegularExamQuestions()" :key="question.id">
-                                <!-- Reading/Listening Questions (most common) -->
-                                <div x-show="question.type === 'Reading' || question.type === 'Listening'" class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden group hover:shadow-md transition">
-                                    <div class="p-6">
-                                        <div class="flex justify-between items-start mb-4">
-                                            <div class="flex items-center gap-3">
-                                                <span class="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide" 
-                                                      :class="question.type === 'Reading' ? 'bg-yellow-100 text-yellow-700' : 'bg-blue-100 text-blue-700'"
-                                                      x-text="question.type"></span>
-                                                <h3 class="text-xl font-bold text-gray-900">
-                                                    <span class="text-gray-500 font-normal text-lg" x-text="'Question ' + (index + 1)"></span>
-                                                </h3>
-                                            </div>
-                                            <div class="flex items-center gap-2 opacity-80 group-hover:opacity-100 transition">
-                                                <button :data-regular="JSON.stringify(question)" @click="showModal = 'editRegular'; editItem = JSON.parse($el.dataset.regular)" class="text-blue-500 hover:text-blue-700 p-2 rounded-full hover:bg-blue-50 transition" title="Edit">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-                                                </button>
-                                                <form action="/admin/delete-regular" method="POST" onsubmit="return confirm('Delete this item?');">
-                                                    <input type="hidden" name="id" :value="question.id">
-                                                    <button type="submit" class="text-red-500 hover:text-red-700 p-2 rounded-full hover:bg-red-50 transition">
-                                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                                                    </button>
-                                                </form>
-                                            </div>
-                                        </div>
-                                        
-                                        <div class="mb-6">
-                                            <div class="bg-purple-50 border-l-4 border-purple-500 p-4 rounded-r-lg">
-                                                <p class="text-lg text-gray-800 font-medium leading-relaxed" x-text="question.prompt || question.question || 'No question available.'"></p>
-                                            </div>
-                                        </div>
-                                        
-                                        <div class="space-y-3">
-                                            <div class="p-4 border-2 rounded-lg transition-all" :class="(question.correctAnswer || 1) === 1 ? 'border-green-500 bg-green-50 shadow-sm' : 'border-gray-200 bg-gray-50 hover:border-gray-300'">
-                                                <div class="flex items-start gap-3">
-                                                    <span class="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold" :class="(question.correctAnswer || 1) === 1 ? 'bg-green-500 text-white' : 'bg-gray-300 text-gray-700'">A</span>
-                                                    <p class="text-sm text-gray-700 flex-1" x-text="question.optionA || 'A. Option A'"></p>
-                                                    <template x-if="(question.correctAnswer || 1) === 1">
-                                                        <span class="flex-shrink-0 text-green-600 font-semibold text-xs">✓ Correct</span>
-                                                    </template>
-                                                </div>
-                                            </div>
-                                            <div class="p-4 border-2 rounded-lg transition-all" :class="(question.correctAnswer || 1) === 2 ? 'border-green-500 bg-green-50 shadow-sm' : 'border-gray-200 bg-gray-50 hover:border-gray-300'">
-                                                <div class="flex items-start gap-3">
-                                                    <span class="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold" :class="(question.correctAnswer || 1) === 2 ? 'bg-green-500 text-white' : 'bg-gray-300 text-gray-700'">B</span>
-                                                    <p class="text-sm text-gray-700 flex-1" x-text="question.optionB || 'B. Option B'"></p>
-                                                    <template x-if="(question.correctAnswer || 1) === 2">
-                                                        <span class="flex-shrink-0 text-green-600 font-semibold text-xs">✓ Correct</span>
-                                                    </template>
-                                                </div>
-                                            </div>
-                                            <div class="p-4 border-2 rounded-lg transition-all" :class="(question.correctAnswer || 1) === 3 ? 'border-green-500 bg-green-50 shadow-sm' : 'border-gray-200 bg-gray-50 hover:border-gray-300'">
-                                                <div class="flex items-start gap-3">
-                                                    <span class="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold" :class="(question.correctAnswer || 1) === 3 ? 'bg-green-500 text-white' : 'bg-gray-300 text-gray-700'">C</span>
-                                                    <p class="text-sm text-gray-700 flex-1" x-text="question.optionC || 'C. Option C'"></p>
-                                                    <template x-if="(question.correctAnswer || 1) === 3">
-                                                        <span class="flex-shrink-0 text-green-600 font-semibold text-xs">✓ Correct</span>
-                                                    </template>
-                                                </div>
-                                            </div>
-                                            <div class="p-4 border-2 rounded-lg transition-all" :class="(question.correctAnswer || 1) === 4 ? 'border-green-500 bg-green-50 shadow-sm' : 'border-gray-200 bg-gray-50 hover:border-gray-300'">
-                                                <div class="flex items-start gap-3">
-                                                    <span class="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold" :class="(question.correctAnswer || 1) === 4 ? 'bg-green-500 text-white' : 'bg-gray-300 text-gray-700'">D</span>
-                                                    <p class="text-sm text-gray-700 flex-1" x-text="question.optionD || 'D. Option D'"></p>
-                                                    <template x-if="(question.correctAnswer || 1) === 4">
-                                                        <span class="flex-shrink-0 text-green-600 font-semibold text-xs">✓ Correct</span>
-                                                    </template>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <!-- Writing Question Card -->
-                                <div x-show="question.type === 'Writing'">
-                                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden group hover:shadow-md transition">
-                                        <div class="p-6">
-                                            <div class="flex justify-between items-start mb-4">
-                                                <h3 class="text-xl font-bold text-gray-900">
-                                                    <span>Writing</span>
-                                                    <span class="text-gray-500 font-normal text-lg">Task 1</span>
-                                                </h3>
-                                                <div class="flex items-center gap-2 opacity-80 group-hover:opacity-100 transition">
-                                                    <button :data-regular="JSON.stringify(question)" @click="showModal = 'editRegular'; editItem = JSON.parse($el.dataset.regular); previewImage = question.image || null" class="text-blue-500 hover:text-blue-700 p-2 rounded-full hover:bg-blue-50 transition" title="Edit">
-                                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-                                                    </button>
-                                                    <form action="/admin/delete-regular" method="POST" onsubmit="return confirm('Delete this item?');">
-                                                        <input type="hidden" name="id" :value="question.id">
-                                                        <button type="submit" class="text-red-500 hover:text-red-700 p-2 rounded-full hover:bg-red-50 transition">
-                                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                                                        </button>
-                                                    </form>
-                                                </div>
-                                            </div>
-                                            
-                                            <div class="mb-4">
-                                                <div class="w-full rounded-lg overflow-hidden bg-gray-100">
-                                                    <template x-if="question.image">
-                                                        <img :src="question.image" alt="Writing prompt image" class="w-full h-auto object-cover">
-                                                    </template>
-                                                    <template x-if="!question.image">
-                                                        <div class="w-full h-64 flex items-center justify-center">
-                                                            <p class="text-gray-400 text-sm">No image available</p>
-                                                        </div>
-                                                    </template>
-                                                </div>
-                                            </div>
-                                            
-                                            <div>
-                                                <p class="text-sm text-gray-600 leading-relaxed" x-text="question.prompt || question.description || 'No description available.'"></p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <!-- Speaking Question Card -->
-                                <div x-show="question.type === 'Speaking'">
-                                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden group hover:shadow-md transition">
-                                        <div class="p-6">
-                                            <div class="flex justify-between items-start mb-4">
-                                                <div class="flex items-center gap-3">
-                                                    <span class="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide bg-yellow-100 text-yellow-700">Speaking</span>
-                                                    <h3 class="text-xl font-bold text-gray-900">
-                                                        <span class="text-gray-500 font-normal text-lg" x-text="'Part ' + (question.part || 1)"></span>
-                                                    </h3>
-                                                </div>
-                                                <div class="flex items-center gap-2 opacity-80 group-hover:opacity-100 transition">
-                                                    <button :data-regular="JSON.stringify(question)" @click="showModal = 'editRegular'; editItem = JSON.parse($el.dataset.regular)" class="text-blue-500 hover:text-blue-700 p-2 rounded-full hover:bg-blue-50 transition" title="Edit">
-                                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-                                                    </button>
-                                                    <form action="/admin/delete-regular" method="POST" onsubmit="return confirm('Delete this item?');">
-                                                        <input type="hidden" name="id" :value="question.id">
-                                                        <button type="submit" class="text-red-500 hover:text-red-700 p-2 rounded-full hover:bg-red-50 transition">
-                                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                                                        </button>
-                                                    </form>
-                                                </div>
-                                            </div>
-                                            
-                                            <div class="mb-6">
-                                                <div class="bg-yellow-50 border-l-4 border-yellow-500 p-4 rounded-r-lg">
-                                                    <p class="text-lg text-gray-800 font-medium leading-relaxed" x-text="(question.questionNumber === 1 ? question.question1 : question.question2) || question.prompt || 'No question available.'"></p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
+                            <template x-for="exam in regularReadingExamsList" :key="exam.id">
+                                <div @click="openRegularReadingExamDetail(exam)" class="bg-white rounded-lg shadow-sm border border-gray-200 p-5 cursor-pointer hover:shadow-md transition">
+                                    <h3 class="text-lg font-semibold text-gray-900 mb-1" x-text="exam.title || 'Untitled Exam'"></h3>
+                                    <p class="text-sm text-gray-500" x-text="exam.description || 'No description'"></p>
                                 </div>
                             </template>
-                            <div x-show="getFilteredRegularExamQuestions().length === 0" class="text-center py-12 border border-dashed border-gray-300 rounded-lg bg-gray-50">
-                                <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-50 mb-4">
-                                    <svg class="w-8 h-8 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                            <div x-show="regularReadingExamsList.length === 0" class="text-center py-12 text-gray-500">
+                                <p>No reading exams yet. Click "Add Reading Exam" to create one.</p>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- Regular Writing List View -->
+                <template x-if="regularWritingView === 'list' && regularWritingSkill === 'writing'">
+                    <div>
+                        <div class="flex justify-between items-center mb-6">
+                            <div class="flex items-center gap-3">
+                                <button @click="regularWritingView = 'cards'; regularWritingSkill = null" class="text-gray-500 hover:text-gray-800 p-2 hover:bg-gray-100 rounded-full transition">
+                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                                    </svg>
+                                </button>
+                                <h2 class="text-2xl font-bold text-gray-800">Writing Exams</h2>
+                            </div>
+                            <button @click="showModal = 'addRegularWriting'; editItem = {}" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition flex items-center gap-2">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                                </svg>
+                                <span>Add Writing Exam</span>
+                            </button>
+                        </div>
+                        <div class="space-y-4">
+                            <template x-for="exam in regularWritingExamsList" :key="exam.id">
+                                <div @click="openRegularWritingExamDetail(exam)" class="bg-white rounded-lg shadow-sm border border-gray-200 p-5 cursor-pointer hover:shadow-md transition">
+                                    <h3 class="text-lg font-semibold text-gray-900 mb-1" x-text="exam.title || 'Untitled Exam'"></h3>
+                                    <p class="text-sm text-gray-500" x-text="exam.description || 'No description'"></p>
                                 </div>
-                                <h3 class="text-lg font-medium text-gray-900">No questions yet</h3>
-                                <p class="text-gray-500 max-w-sm mx-auto mt-1">Click "+ Add Question" to create your first <span x-text="regularExamSkill" class="font-semibold"></span> question.</p>
+                            </template>
+                            <div x-show="regularWritingExamsList.length === 0" class="text-center py-12 text-gray-500">
+                                <p>No writing exams yet. Click "Add Writing Exam" to create one.</p>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- Regular Writing Detail View -->
+                <template x-if="regularWritingView === 'detail' && regularWritingSkill === 'writing'">
+                    <div class="mt-6 bg-white rounded-lg shadow-sm">
+                        <!-- Header -->
+                        <div class="flex items-center justify-between p-6 border-b border-gray-200">
+                            <div class="flex items-center gap-4">
+                                <button @click="closeRegularWritingExamDetail()" class="text-gray-500 hover:text-gray-800 p-2 hover:bg-gray-100 rounded-full transition">
+                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                                    </svg>
+                                </button>
+                                <div>
+                                    <h2 class="text-2xl font-bold text-gray-900" x-text="selectedRegularWritingExam?.title || 'Writing Exam'"></h2>
+                                    <p class="text-sm text-gray-500" x-text="selectedRegularWritingExam?.description || ''"></p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <button x-show="regularWritingExamSaved && !regularWritingEditMode" @click="regularWritingEditMode = true" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition flex items-center gap-2">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                                    </svg>
+                                    Edit
+                                </button>
+                                <button x-show="!regularWritingExamSaved || regularWritingEditMode" @click="saveRegularWritingExam()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition flex items-center gap-2">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                    </svg>
+                                    Save
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Content Editor -->
+                        <div class="p-6">
+                            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                <!-- Writing Task 1 Card -->
+                                <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 bg-gray-50">
+                                    <h3 class="text-lg font-semibold text-gray-700 mb-4">Writing Task 1</h3>
+                                    
+                                    <!-- Image Upload -->
+                                    <div class="mb-4">
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Visual Prompt (Optional)</label>
+                                        <div class="border-2 border-dashed border-gray-300 rounded-lg p-4 bg-white">
+                                            <div class="text-center">
+                                                <div x-show="!regularWritingTask1.previewImage && !regularWritingTask1.image">
+                                                    <svg class="mx-auto h-10 w-10 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                                                        <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                                    </svg>
+                                                    <div class="mt-2">
+                                                        <label class="cursor-pointer" :class="regularWritingEditMode || !regularWritingExamSaved ? '' : 'pointer-events-none opacity-50'">
+                                                            <span class="text-sm text-blue-600 hover:text-blue-500 font-medium">Click to upload</span>
+                                                            <input type="file" accept="image/*" class="hidden" :disabled="!regularWritingEditMode && regularWritingExamSaved" @change="handleRegularWritingTaskImageUpload($event, 1)">
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                                <div x-show="regularWritingTask1.previewImage || regularWritingTask1.image" class="relative">
+                                                    <img :src="regularWritingTask1.previewImage || regularWritingTask1.image" class="max-h-32 mx-auto rounded-md shadow-sm">
+                                                    <button type="button" x-show="regularWritingEditMode || !regularWritingExamSaved" @click="regularWritingTask1.previewImage = null; regularWritingTask1.image = null" class="absolute top-0 right-0 bg-red-500 text-white rounded-full p-1 -mt-2 -mr-2 shadow-sm hover:bg-red-600">
+                                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                                        </svg>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Task Instructions -->
+                                    <div class="mb-4">
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Task Instructions</label>
+                                        <textarea x-model="regularWritingTask1.description" :disabled="!regularWritingEditMode && regularWritingExamSaved" placeholder="Enter Writing Task 1 instructions..." class="w-full border border-gray-300 rounded-lg p-3 h-32 resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" :class="(!regularWritingEditMode && regularWritingExamSaved) ? 'bg-gray-100 cursor-not-allowed' : ''"></textarea>
+                                    </div>
+                                    
+                                    <!-- Tags -->
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Tags</label>
+                                        <input type="text" x-model="regularWritingTask1.tags" :disabled="!regularWritingEditMode && regularWritingExamSaved" placeholder="e.g., #graph, #data_interpretation" class="w-full border border-gray-300 rounded-lg p-2 text-sm" :class="(!regularWritingEditMode && regularWritingExamSaved) ? 'bg-gray-100 cursor-not-allowed' : ''">
+                                    </div>
+                                </div>
+                                
+                                <!-- Writing Task 2 Card -->
+                                <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 bg-gray-50">
+                                    <h3 class="text-lg font-semibold text-gray-700 mb-4">Writing Task 2</h3>
+                                    
+                                    <!-- Image Upload -->
+                                    <div class="mb-4">
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Visual Prompt (Optional)</label>
+                                        <div class="border-2 border-dashed border-gray-300 rounded-lg p-4 bg-white">
+                                            <div class="text-center">
+                                                <div x-show="!regularWritingTask2.previewImage && !regularWritingTask2.image">
+                                                    <svg class="mx-auto h-10 w-10 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                                                        <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                                    </svg>
+                                                    <div class="mt-2">
+                                                        <label class="cursor-pointer" :class="regularWritingEditMode || !regularWritingExamSaved ? '' : 'pointer-events-none opacity-50'">
+                                                            <span class="text-sm text-blue-600 hover:text-blue-500 font-medium">Click to upload</span>
+                                                            <input type="file" accept="image/*" class="hidden" :disabled="!regularWritingEditMode && regularWritingExamSaved" @change="handleRegularWritingTaskImageUpload($event, 2)">
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                                <div x-show="regularWritingTask2.previewImage || regularWritingTask2.image" class="relative">
+                                                    <img :src="regularWritingTask2.previewImage || regularWritingTask2.image" class="max-h-32 mx-auto rounded-md shadow-sm">
+                                                    <button type="button" x-show="regularWritingEditMode || !regularWritingExamSaved" @click="regularWritingTask2.previewImage = null; regularWritingTask2.image = null" class="absolute top-0 right-0 bg-red-500 text-white rounded-full p-1 -mt-2 -mr-2 shadow-sm hover:bg-red-600">
+                                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                                        </svg>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Task Instructions -->
+                                    <div class="mb-4">
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Task Instructions</label>
+                                        <textarea x-model="regularWritingTask2.description" :disabled="!regularWritingEditMode && regularWritingExamSaved" placeholder="Enter Writing Task 2 instructions..." class="w-full border border-gray-300 rounded-lg p-3 h-32 resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" :class="(!regularWritingEditMode && regularWritingExamSaved) ? 'bg-gray-100 cursor-not-allowed' : ''"></textarea>
+                                    </div>
+                                    
+                                    <!-- Tags -->
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Tags</label>
+                                        <input type="text" x-model="regularWritingTask2.tags" :disabled="!regularWritingEditMode && regularWritingExamSaved" placeholder="e.g., #essay, #opinion, #education" class="w-full border border-gray-300 rounded-lg p-2 text-sm" :class="(!regularWritingEditMode && regularWritingExamSaved) ? 'bg-gray-100 cursor-not-allowed' : ''">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- Regular Reading Detail View -->
+                <template x-if="regularReadingView === 'detail' && regularReadingSkill === 'reading'">
+                    <div class="bg-white rounded-lg shadow-sm">
+                        <!-- Header -->
+                        <div class="flex items-center justify-between p-6 border-b border-gray-200">
+                            <div class="flex items-center gap-4">
+                                <button @click="closeRegularReadingExamDetail()" class="text-gray-500 hover:text-gray-800 p-2 hover:bg-gray-100 rounded-full transition">
+                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                                    </svg>
+                                </button>
+                                <div>
+                                    <h2 class="text-2xl font-bold text-gray-900" x-text="selectedRegularReadingExam?.title || 'Reading Exam'"></h2>
+                                    <p class="text-sm text-gray-500" x-text="selectedRegularReadingExam?.description || ''"></p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <button x-show="regularReadingExamSaved && !regularReadingEditMode" @click="regularReadingEditMode = true" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition flex items-center gap-2">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                                    </svg>
+                                    Edit
+                                </button>
+                                <button x-show="!regularReadingExamSaved || regularReadingEditMode" @click="saveRegularReadingExam()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition flex items-center gap-2">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                    </svg>
+                                    Save
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Split-Screen Editor -->
+                        <div class="p-6">
+                            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                <!-- Left Card: Passage Editor -->
+                                <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 bg-gray-50">
+                                    <h3 class="text-lg font-semibold text-gray-700 mb-4">Reading Passage Content</h3>
+                                    
+                                    <!-- Passage Title -->
+                                    <div class="mb-4">
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Passage Title</label>
+                                        <input type="text" x-model="regularReadingPassageTitle" :disabled="!regularReadingEditMode && regularReadingExamSaved" placeholder="Enter passage title..." class="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-green-500 focus:border-green-500" :class="(!regularReadingEditMode && regularReadingExamSaved) ? 'bg-gray-100 cursor-not-allowed' : ''">
+                                    </div>
+                                    
+                                    <!-- Passage Content (Rich Text Editor) -->
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Passage Content</label>
+                                        <textarea x-model="regularReadingPassageContent" :disabled="!regularReadingEditMode && regularReadingExamSaved" placeholder="Enter the reading passage content here. You can use paragraph breaks, and format text as needed..." class="w-full border border-gray-300 rounded-lg p-3 h-96 resize-none focus:ring-2 focus:ring-green-500 focus:border-green-500" :class="(!regularReadingEditMode && regularReadingExamSaved) ? 'bg-gray-100 cursor-not-allowed' : ''"></textarea>
+                                        <p class="text-xs text-gray-500 mt-1">Tip: Use line breaks to create paragraphs. Formatting support coming soon.</p>
+                                    </div>
+                                </div>
+                                
+                                <!-- Right Card: Question Designer (MCQ) -->
+                                <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 bg-gray-50">
+                                    <h3 class="text-lg font-semibold text-gray-700 mb-4">Multiple Choice Questions</h3>
+                                    
+                                    <!-- Question Input Form -->
+                                    <div class="space-y-4 mb-6">
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-2">Question Prompt</label>
+                                            <textarea x-model="currentRegularReadingQuestion.question" :disabled="!regularReadingEditMode && regularReadingExamSaved" placeholder="Enter the question..." class="w-full border border-gray-300 rounded-lg p-3 h-20 resize-none focus:ring-2 focus:ring-green-500 focus:border-green-500" :class="(!regularReadingEditMode && regularReadingExamSaved) ? 'bg-gray-100 cursor-not-allowed' : ''"></textarea>
+                                        </div>
+                                        
+                                        <div class="grid grid-cols-2 gap-3">
+                                            <div>
+                                                <label class="block text-xs font-medium text-gray-700 mb-1">Option A</label>
+                                                <input type="text" x-model="currentRegularReadingQuestion.optionA" :disabled="!regularReadingEditMode && regularReadingExamSaved" placeholder="Option A" class="w-full border border-gray-300 rounded-lg p-2 text-sm" :class="(!regularReadingEditMode && regularReadingExamSaved) ? 'bg-gray-100 cursor-not-allowed' : ''">
+                                            </div>
+                                            <div>
+                                                <label class="block text-xs font-medium text-gray-700 mb-1">Option B</label>
+                                                <input type="text" x-model="currentRegularReadingQuestion.optionB" :disabled="!regularReadingEditMode && regularReadingExamSaved" placeholder="Option B" class="w-full border border-gray-300 rounded-lg p-2 text-sm" :class="(!regularReadingEditMode && regularReadingExamSaved) ? 'bg-gray-100 cursor-not-allowed' : ''">
+                                            </div>
+                                            <div>
+                                                <label class="block text-xs font-medium text-gray-700 mb-1">Option C</label>
+                                                <input type="text" x-model="currentRegularReadingQuestion.optionC" :disabled="!regularReadingEditMode && regularReadingExamSaved" placeholder="Option C" class="w-full border border-gray-300 rounded-lg p-2 text-sm" :class="(!regularReadingEditMode && regularReadingExamSaved) ? 'bg-gray-100 cursor-not-allowed' : ''">
+                                            </div>
+                                            <div>
+                                                <label class="block text-xs font-medium text-gray-700 mb-1">Option D</label>
+                                                <input type="text" x-model="currentRegularReadingQuestion.optionD" :disabled="!regularReadingEditMode && regularReadingExamSaved" placeholder="Option D" class="w-full border border-gray-300 rounded-lg p-2 text-sm" :class="(!regularReadingEditMode && regularReadingExamSaved) ? 'bg-gray-100 cursor-not-allowed' : ''">
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="grid grid-cols-2 gap-3">
+                                            <div>
+                                                <label class="block text-xs font-medium text-gray-700 mb-1">Correct Answer</label>
+                                                <select x-model="currentRegularReadingQuestion.correctAnswer" :disabled="!regularReadingEditMode && regularReadingExamSaved" class="w-full border border-gray-300 rounded-lg p-2 text-sm" :class="(!regularReadingEditMode && regularReadingExamSaved) ? 'bg-gray-100 cursor-not-allowed' : ''">
+                                                    <option value="A">A</option>
+                                                    <option value="B">B</option>
+                                                    <option value="C">C</option>
+                                                    <option value="D">D</option>
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label class="block text-xs font-medium text-gray-700 mb-1">Tags</label>
+                                                <input type="text" x-model="currentRegularReadingQuestion.tags" :disabled="!regularReadingEditMode && regularReadingExamSaved" placeholder="e.g., #vocabulary, #inference" class="w-full border border-gray-300 rounded-lg p-2 text-sm" :class="(!regularReadingEditMode && regularReadingExamSaved) ? 'bg-gray-100 cursor-not-allowed' : ''">
+                                            </div>
+                                        </div>
+                                        
+                                        <button x-show="regularReadingEditMode || !regularReadingExamSaved" @click="addRegularReadingQuestion()" class="w-full bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition">
+                                            Add Question
+                                        </button>
+                                    </div>
+                                    
+                                    <!-- Added Questions List -->
+                                    <div>
+                                        <h4 class="text-sm font-semibold text-gray-700 mb-3">Added Questions (<span x-text="regularReadingQuestions.length"></span>)</h4>
+                                        <div class="space-y-2 max-h-96 overflow-y-auto">
+                                            <template x-for="(q, index) in regularReadingQuestions" :key="q.id || index">
+                                                <div class="bg-white border border-gray-200 rounded-lg p-3 flex items-start justify-between group">
+                                                    <div class="flex-1 min-w-0">
+                                                        <p class="text-sm font-medium text-gray-900 mb-1">Q<span x-text="index + 1"></span>: <span x-text="q.question"></span></p>
+                                                        <p class="text-xs text-gray-600">A: <span x-text="q.optionA"></span> | B: <span x-text="q.optionB"></span> | C: <span x-text="q.optionC"></span> | D: <span x-text="q.optionD"></span></p>
+                                                        <p class="text-xs text-green-600 mt-1">Correct: <span x-text="q.correctAnswer"></span></p>
+                                                        <p x-show="q.tags" class="text-xs text-gray-500 mt-1">Tags: <span x-text="q.tags"></span></p>
+                                                    </div>
+                                                    <div class="flex items-center gap-2 ml-2" x-show="regularReadingEditMode || !regularReadingExamSaved">
+                                                        <button @click="editRegularReadingQuestion(index)" class="text-blue-600 hover:text-blue-700 opacity-0 group-hover:opacity-100 transition text-xs">
+                                                            Edit
+                                                        </button>
+                                                        <button @click="removeRegularReadingQuestion(index)" class="text-red-600 hover:text-red-700 opacity-0 group-hover:opacity-100 transition text-xs">
+                                                            Delete
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </template>
+                                            <div x-show="regularReadingQuestions.length === 0" class="text-center py-8 text-gray-400 text-sm">
+                                                No questions added yet. Fill in the form above and click "Add Question".
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- Regular Listening List View -->
+                <template x-if="regularListeningView === 'list' && regularListeningSkill === 'listening'">
+                    <div>
+                        <div class="flex justify-between items-center mb-6">
+                            <div class="flex items-center gap-3">
+                                <button @click="regularListeningView = 'cards'; regularListeningSkill = null" class="text-gray-500 hover:text-gray-800 p-2 hover:bg-gray-100 rounded-full transition">
+                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                                    </svg>
+                                </button>
+                                <h2 class="text-2xl font-bold text-gray-800">Regular Listening Exams</h2>
+                            </div>
+                            <button @click="showModal = 'addRegularListening'; editItem = {}" class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition flex items-center gap-2">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                                </svg>
+                                <span>Add New Exam</span>
+                            </button>
+                        </div>
+                        <div class="space-y-4">
+                            <template x-for="exam in regularListeningExamsList" :key="exam.id">
+                                <div @click="openRegularListeningExamDetail(exam)" class="bg-white rounded-lg shadow-sm border border-gray-200 p-5 cursor-pointer hover:shadow-md transition">
+                                    <h3 class="text-lg font-semibold text-gray-900 mb-1" x-text="exam.title || 'Untitled Exam'"></h3>
+                                    <p class="text-sm text-gray-500" x-text="exam.description || 'No description'"></p>
+                                </div>
+                            </template>
+                            <div x-show="regularListeningExamsList.length === 0" class="text-center py-12 text-gray-500">
+                                <p>No listening exams yet. Click "Add New Exam" to create one.</p>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- Regular Listening Detail View -->
+                <template x-if="regularListeningView === 'detail' && regularListeningSkill === 'listening'">
+                    <div class="bg-white rounded-lg shadow-sm">
+                        <!-- Top Bar -->
+                        <div class="flex items-center justify-between p-6 border-b border-gray-200">
+                            <div class="flex items-center gap-4">
+                                <button @click="closeRegularListeningExamDetail()" class="text-gray-500 hover:text-gray-800 p-2 hover:bg-gray-100 rounded-full transition">
+                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                                    </svg>
+                                </button>
+                                <div>
+                                    <h2 class="text-2xl font-bold text-gray-900" x-text="selectedRegularListeningExam?.title || 'Listening Exam'"></h2>
+                                    <p class="text-sm text-gray-500" x-text="selectedRegularListeningExam?.description || ''"></p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <button x-show="regularListeningExamSaved && !regularListeningEditMode" @click="regularListeningEditMode = true" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition flex items-center gap-2">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                                    </svg>
+                                    Edit
+                                </button>
+                                <button x-show="!regularListeningExamSaved || regularListeningEditMode" @click="saveRegularListeningExam()" class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition flex items-center gap-2">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                    </svg>
+                                    Save
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Split-Screen Editor (50/50) -->
+                        <div class="p-6">
+                            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                <!-- Left Panel: Audio Script Configuration -->
+                                <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 bg-gray-50">
+                                    <h3 class="text-lg font-semibold text-gray-700 mb-4">Audio Script Configuration</h3>
+                                    
+                                    <!-- Narration/Context Field -->
+                                    <div class="mb-6">
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Narration / Context</label>
+                                        <textarea x-model="regularListeningNarration" :disabled="!regularListeningEditMode && regularListeningExamSaved" placeholder="This conversation is between a Customer and a Receptionist..." class="w-full border border-gray-300 rounded-lg p-3 h-24 resize-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500" :class="(!regularListeningEditMode && regularListeningExamSaved) ? 'bg-gray-100 cursor-not-allowed' : ''"></textarea>
+                                    </div>
+                                    
+                                    <!-- Script Builder -->
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Script Builder</label>
+                                        <div class="space-y-3 max-h-96 overflow-y-auto mb-4">
+                                            <template x-for="(block, index) in regularListeningScriptBlocks" :key="block.id || index">
+                                                <div class="bg-white border border-gray-200 rounded-lg p-4">
+                                                    <div class="flex items-start justify-between mb-3">
+                                                        <label class="text-sm font-semibold text-gray-700" x-text="block.speaker || 'Speaker 1'"></label>
+                                                        <button x-show="regularListeningEditMode || !regularListeningExamSaved" @click="removeRegularListeningScriptBlock(index)" class="text-red-600 hover:text-red-700 text-xs">
+                                                            Remove
+                                                        </button>
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label class="block text-xs font-medium text-gray-600 mb-1">Accent</label>
+                                                        <select x-model="block.accent" :disabled="!regularListeningEditMode && regularListeningExamSaved" class="w-full border border-gray-300 rounded-lg p-2 text-sm" :class="(!regularListeningEditMode && regularListeningExamSaved) ? 'bg-gray-100 cursor-not-allowed' : ''">
+                                                            <option value="British">British</option>
+                                                            <option value="American">American</option>
+                                                            <option value="Australian">Australian</option>
+                                                            <option value="Indian">Indian</option>
+                                                            <option value="Scottish">Scottish</option>
+                                                            <option value="Irish">Irish</option>
+                                                        </select>
+                                                    </div>
+                                                    <div>
+                                                        <label class="block text-xs font-medium text-gray-600 mb-1">Line</label>
+                                                        <textarea x-model="block.line" :disabled="!regularListeningEditMode && regularListeningExamSaved" placeholder="Enter dialogue..." class="w-full border border-gray-300 rounded-lg p-2 text-sm h-20 resize-none" :class="(!regularListeningEditMode && regularListeningExamSaved) ? 'bg-gray-100 cursor-not-allowed' : ''"></textarea>
+                                                    </div>
+                                                </div>
+                                            </template>
+                                            <div x-show="regularListeningScriptBlocks.length === 0" class="text-center py-8 text-gray-400 text-sm">
+                                                No dialogue blocks yet. Click "Add Line" to start.
+                                            </div>
+                                        </div>
+                                        <button x-show="regularListeningEditMode || !regularListeningExamSaved" @click="addRegularListeningScriptBlock()" class="w-full bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition">
+                                            Add Line
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <!-- Right Panel: Question Designer -->
+                                <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 bg-gray-50">
+                                    <h3 class="text-lg font-semibold text-gray-700 mb-4">Multiple Choice Questions</h3>
+                                    
+                                    <!-- Question Form -->
+                                    <div class="space-y-4 mb-6">
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-2">Question Text</label>
+                                            <textarea x-model="currentRegularListeningQuestion.question" :disabled="!regularListeningEditMode && regularListeningExamSaved" placeholder="Enter the question..." class="w-full border border-gray-300 rounded-lg p-3 h-20 resize-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500" :class="(!regularListeningEditMode && regularListeningExamSaved) ? 'bg-gray-100 cursor-not-allowed' : ''"></textarea>
+                                        </div>
+                                        
+                                        <div class="grid grid-cols-2 gap-3">
+                                            <div>
+                                                <label class="block text-xs font-medium text-gray-700 mb-1">Option A</label>
+                                                <input type="text" x-model="currentRegularListeningQuestion.optionA" :disabled="!regularListeningEditMode && regularListeningExamSaved" placeholder="Option A" class="w-full border border-gray-300 rounded-lg p-2 text-sm" :class="(!regularListeningEditMode && regularListeningExamSaved) ? 'bg-gray-100 cursor-not-allowed' : ''">
+                                            </div>
+                                            <div>
+                                                <label class="block text-xs font-medium text-gray-700 mb-1">Option B</label>
+                                                <input type="text" x-model="currentRegularListeningQuestion.optionB" :disabled="!regularListeningEditMode && regularListeningExamSaved" placeholder="Option B" class="w-full border border-gray-300 rounded-lg p-2 text-sm" :class="(!regularListeningEditMode && regularListeningExamSaved) ? 'bg-gray-100 cursor-not-allowed' : ''">
+                                            </div>
+                                            <div>
+                                                <label class="block text-xs font-medium text-gray-700 mb-1">Option C</label>
+                                                <input type="text" x-model="currentRegularListeningQuestion.optionC" :disabled="!regularListeningEditMode && regularListeningExamSaved" placeholder="Option C" class="w-full border border-gray-300 rounded-lg p-2 text-sm" :class="(!regularListeningEditMode && regularListeningExamSaved) ? 'bg-gray-100 cursor-not-allowed' : ''">
+                                            </div>
+                                            <div>
+                                                <label class="block text-xs font-medium text-gray-700 mb-1">Option D</label>
+                                                <input type="text" x-model="currentRegularListeningQuestion.optionD" :disabled="!regularListeningEditMode && regularListeningExamSaved" placeholder="Option D" class="w-full border border-gray-300 rounded-lg p-2 text-sm" :class="(!regularListeningEditMode && regularListeningExamSaved) ? 'bg-gray-100 cursor-not-allowed' : ''">
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="grid grid-cols-2 gap-3">
+                                            <div>
+                                                <label class="block text-xs font-medium text-gray-700 mb-1">Correct Answer</label>
+                                                <select x-model="currentRegularListeningQuestion.correctAnswer" :disabled="!regularListeningEditMode && regularListeningExamSaved" class="w-full border border-gray-300 rounded-lg p-2 text-sm" :class="(!regularListeningEditMode && regularListeningExamSaved) ? 'bg-gray-100 cursor-not-allowed' : ''">
+                                                    <option value="A">A</option>
+                                                    <option value="B">B</option>
+                                                    <option value="C">C</option>
+                                                    <option value="D">D</option>
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label class="block text-xs font-medium text-gray-700 mb-1">Tags</label>
+                                                <input type="text" x-model="currentRegularListeningQuestion.tags" :disabled="!regularListeningEditMode && regularListeningExamSaved" placeholder="e.g., #vocabulary, #numbers" class="w-full border border-gray-300 rounded-lg p-2 text-sm" :class="(!regularListeningEditMode && regularListeningExamSaved) ? 'bg-gray-100 cursor-not-allowed' : ''">
+                                            </div>
+                                        </div>
+                                        
+                                        <button x-show="regularListeningEditMode || !regularListeningExamSaved" @click="addRegularListeningQuestion()" class="w-full bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition">
+                                            Add Question
+                                        </button>
+                                    </div>
+                                    
+                                    <!-- Existing Questions Display -->
+                                    <div>
+                                        <h4 class="text-sm font-semibold text-gray-700 mb-3">Existing Questions (<span x-text="regularListeningQuestions.length"></span>)</h4>
+                                        <div class="space-y-2 max-h-96 overflow-y-auto">
+                                            <template x-for="(q, index) in regularListeningQuestions" :key="q.id || index">
+                                                <div class="bg-white border border-gray-200 rounded-lg p-3">
+                                                    <div class="flex items-start justify-between mb-2">
+                                                        <p class="text-sm font-medium text-gray-900 flex-1">Q<span x-text="index + 1"></span>: <span x-text="q.question"></span></p>
+                                                        <div class="flex items-center gap-2 ml-2" x-show="regularListeningEditMode || !regularListeningExamSaved">
+                                                            <button @click="editRegularListeningQuestion(index)" class="text-blue-600 hover:text-blue-700 text-xs">
+                                                                Edit
+                                                            </button>
+                                                            <button @click="removeRegularListeningQuestion(index)" class="text-red-600 hover:text-red-700 text-xs">
+                                                                Delete
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                    <div class="grid grid-cols-2 gap-2 text-xs">
+                                                        <div :class="q.correctAnswer === 'A' ? 'bg-green-100 text-green-800 font-semibold' : 'text-gray-600'">
+                                                            A: <span x-text="q.optionA"></span>
+                                                        </div>
+                                                        <div :class="q.correctAnswer === 'B' ? 'bg-green-100 text-green-800 font-semibold' : 'text-gray-600'">
+                                                            B: <span x-text="q.optionB"></span>
+                                                        </div>
+                                                        <div :class="q.correctAnswer === 'C' ? 'bg-green-100 text-green-800 font-semibold' : 'text-gray-600'">
+                                                            C: <span x-text="q.optionC"></span>
+                                                        </div>
+                                                        <div :class="q.correctAnswer === 'D' ? 'bg-green-100 text-green-800 font-semibold' : 'text-gray-600'">
+                                                            D: <span x-text="q.optionD"></span>
+                                                        </div>
+                                                    </div>
+                                                    <p x-show="q.tags" class="text-xs text-gray-500 mt-2">Tags: <span x-text="q.tags"></span></p>
+                                                </div>
+                                            </template>
+                                            <div x-show="regularListeningQuestions.length === 0" class="text-center py-8 text-gray-400 text-sm">
+                                                No questions added yet. Fill in the form above and click "Add Question".
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- Regular Speaking List View -->
+                <template x-if="regularSpeakingView === 'list' && regularSpeakingSkill === 'speaking'">
+                    <div>
+                        <div class="flex justify-between items-center mb-6">
+                            <div class="flex items-center gap-3">
+                                <button @click="regularSpeakingView = 'cards'; regularSpeakingSkill = null" class="text-gray-500 hover:text-gray-800 p-2 hover:bg-gray-100 rounded-full transition">
+                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                                    </svg>
+                                </button>
+                                <h2 class="text-2xl font-bold text-gray-800">Regular Speaking Exams</h2>
+                            </div>
+                            <button @click="showModal = 'addRegularSpeaking'; editItem = {}" class="bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700 transition flex items-center gap-2">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                                </svg>
+                                <span>Add Speaking Exam</span>
+                            </button>
+                        </div>
+                        <div class="space-y-4">
+                            <template x-for="exam in regularSpeakingExamsList" :key="exam.id">
+                                <div @click="openRegularSpeakingExamDetail(exam)" class="bg-white rounded-lg shadow-sm border border-gray-200 p-5 cursor-pointer hover:shadow-md transition">
+                                    <h3 class="text-lg font-semibold text-gray-900 mb-1" x-text="exam.title || 'Untitled Exam'"></h3>
+                                    <p class="text-sm text-gray-500" x-text="exam.description || 'No description'"></p>
+                                </div>
+                            </template>
+                            <div x-show="regularSpeakingExamsList.length === 0" class="text-center py-12 text-gray-500">
+                                <p>No speaking exams yet. Click "Add Speaking Exam" to create one.</p>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- Regular Speaking Detail View -->
+                <template x-if="regularSpeakingView === 'detail' && regularSpeakingSkill === 'speaking'">
+                    <div class="bg-white rounded-lg shadow-sm">
+                        <!-- Top Bar -->
+                        <div class="flex items-center justify-between p-6 border-b border-gray-200">
+                            <div class="flex items-center gap-4">
+                                <button @click="closeRegularSpeakingExamDetail()" class="text-gray-500 hover:text-gray-800 p-2 hover:bg-gray-100 rounded-full transition">
+                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                                    </svg>
+                                </button>
+                                <div>
+                                    <h2 class="text-2xl font-bold text-gray-900" x-text="selectedRegularSpeakingExam?.title || 'Speaking Exam'"></h2>
+                                    <p class="text-sm text-gray-500" x-text="selectedRegularSpeakingExam?.description || ''"></p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <button x-show="regularSpeakingExamSaved && !regularSpeakingEditMode" @click="regularSpeakingEditMode = true" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition flex items-center gap-2">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                                    </svg>
+                                    Edit
+                                </button>
+                                <button x-show="!regularSpeakingExamSaved || regularSpeakingEditMode" @click="saveRegularSpeakingExam()" class="bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700 transition flex items-center gap-2">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                    </svg>
+                                    Save
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Split-Screen Editor (50/50) -->
+                        <div class="p-6">
+                            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                <!-- Left Panel: Examiner Instructions & Script -->
+                                <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 bg-gray-50">
+                                    <h3 class="text-lg font-semibold text-gray-700 mb-4">Module Content / Examiner Script</h3>
+                                    
+                                    <!-- Content Editor (WYSIWYG - using textarea for now) -->
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Examiner Instructions</label>
+                                        <textarea x-model="regularSpeakingModuleContent" :disabled="!regularSpeakingEditMode && regularSpeakingExamSaved" placeholder="In this part of the exam, I am going to ask you some questions about yourself..." class="w-full border border-gray-300 rounded-lg p-3 h-96 resize-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500" :class="(!regularSpeakingEditMode && regularSpeakingExamSaved) ? 'bg-gray-100 cursor-not-allowed' : ''"></textarea>
+                                        <p class="text-xs text-gray-500 mt-1">Tip: Use line breaks to create paragraphs. Formatting support coming soon.</p>
+                                    </div>
+                                </div>
+                                
+                                <!-- Right Panel: Question Bank (Parts 1-3) -->
+                                <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 bg-gray-50">
+                                    <h3 class="text-lg font-semibold text-gray-700 mb-4">Question Bank</h3>
+                                    
+                                    <!-- Part Selector (Tabs) -->
+                                    <div class="mb-4">
+                                        <div class="flex border-b border-gray-300">
+                                            <button @click="regularSpeakingCurrentPart = 1" :class="regularSpeakingCurrentPart === 1 ? 'border-b-2 border-yellow-500 text-yellow-600 font-semibold' : 'text-gray-600 hover:text-gray-800'" class="px-4 py-2 text-sm transition">
+                                                Part 1: Introduction
+                                            </button>
+                                            <button @click="regularSpeakingCurrentPart = 2" :class="regularSpeakingCurrentPart === 2 ? 'border-b-2 border-yellow-500 text-yellow-600 font-semibold' : 'text-gray-600 hover:text-gray-800'" class="px-4 py-2 text-sm transition">
+                                                Part 2: Cue Card
+                                            </button>
+                                            <button @click="regularSpeakingCurrentPart = 3" :class="regularSpeakingCurrentPart === 3 ? 'border-b-2 border-yellow-500 text-yellow-600 font-semibold' : 'text-gray-600 hover:text-gray-800'" class="px-4 py-2 text-sm transition">
+                                                Part 3: Discussion
+                                            </button>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Question Input Area -->
+                                    <div class="space-y-4 mb-6">
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-2">Prompt/Question</label>
+                                            <textarea x-model="currentRegularSpeakingQuestion.question" :disabled="!regularSpeakingEditMode && regularSpeakingExamSaved" placeholder="Tell me about your hometown." class="w-full border border-gray-300 rounded-lg p-3 h-20 resize-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500" :class="(!regularSpeakingEditMode && regularSpeakingExamSaved) ? 'bg-gray-100 cursor-not-allowed' : ''"></textarea>
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-2">Tags</label>
+                                            <input type="text" x-model="currentRegularSpeakingQuestion.tags" :disabled="!regularSpeakingEditMode && regularSpeakingExamSaved" placeholder="e.g., #hometown, #intro, #vocabulary" class="w-full border border-gray-300 rounded-lg p-2 text-sm" :class="(!regularSpeakingEditMode && regularSpeakingExamSaved) ? 'bg-gray-100 cursor-not-allowed' : ''">
+                                        </div>
+                                        <button x-show="regularSpeakingEditMode || !regularSpeakingExamSaved" @click="addRegularSpeakingQuestion()" class="w-full bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700 transition">
+                                            Add Prompt
+                                        </button>
+                                    </div>
+                                    
+                                    <!-- Active Question List (Display) -->
+                                    <div>
+                                        <h4 class="text-sm font-semibold text-gray-700 mb-3">Active Questions - Part <span x-text="regularSpeakingCurrentPart"></span> (<span x-text="getRegularSpeakingQuestionsForPart(regularSpeakingCurrentPart).length"></span>)</h4>
+                                        <div class="space-y-2 max-h-96 overflow-y-auto">
+                                            <!-- Part 1 Questions -->
+                                            <template x-if="regularSpeakingCurrentPart === 1">
+                                                <div>
+                                                    <template x-for="(q, index) in regularSpeakingQuestions.part1" :key="q.id || index">
+                                                        <div class="bg-white border border-gray-200 rounded-lg p-3 flex items-start justify-between group">
+                                                            <div class="flex-1 min-w-0">
+                                                                <p class="text-sm font-medium text-gray-900 mb-1"><span x-text="index + 1"></span>. <span x-text="q.question"></span></p>
+                                                                <p x-show="q.tags" class="text-xs text-gray-500">Tags: <span x-text="q.tags"></span></p>
+                                                            </div>
+                                                            <div class="flex items-center gap-2 ml-2" x-show="regularSpeakingEditMode || !regularSpeakingExamSaved">
+                                                                <button @click="editRegularSpeakingQuestion(1, index)" class="text-blue-600 hover:text-blue-700 opacity-0 group-hover:opacity-100 transition text-xs">
+                                                                    Edit
+                                                                </button>
+                                                                <button @click="removeRegularSpeakingQuestion(1, index)" class="text-red-600 hover:text-red-700 opacity-0 group-hover:opacity-100 transition text-xs">
+                                                                    Delete
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    </template>
+                                                    <div x-show="regularSpeakingQuestions.part1.length === 0" class="text-center py-8 text-gray-400 text-sm">
+                                                        No questions added yet for Part 1. Fill in the form above and click "Add Prompt".
+                                                    </div>
+                                                </div>
+                                            </template>
+                                            
+                                            <!-- Part 2 Questions -->
+                                            <template x-if="regularSpeakingCurrentPart === 2">
+                                                <div>
+                                                    <template x-for="(q, index) in regularSpeakingQuestions.part2" :key="q.id || index">
+                                                        <div class="bg-white border border-gray-200 rounded-lg p-3 flex items-start justify-between group">
+                                                            <div class="flex-1 min-w-0">
+                                                                <p class="text-sm font-medium text-gray-900 mb-1"><span x-text="index + 1"></span>. <span x-text="q.question"></span></p>
+                                                                <p x-show="q.tags" class="text-xs text-gray-500">Tags: <span x-text="q.tags"></span></p>
+                                                            </div>
+                                                            <div class="flex items-center gap-2 ml-2" x-show="regularSpeakingEditMode || !regularSpeakingExamSaved">
+                                                                <button @click="editRegularSpeakingQuestion(2, index)" class="text-blue-600 hover:text-blue-700 opacity-0 group-hover:opacity-100 transition text-xs">
+                                                                    Edit
+                                                                </button>
+                                                                <button @click="removeRegularSpeakingQuestion(2, index)" class="text-red-600 hover:text-red-700 opacity-0 group-hover:opacity-100 transition text-xs">
+                                                                    Delete
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    </template>
+                                                    <div x-show="regularSpeakingQuestions.part2.length === 0" class="text-center py-8 text-gray-400 text-sm">
+                                                        No questions added yet for Part 2. Fill in the form above and click "Add Prompt".
+                                                    </div>
+                                                </div>
+                                            </template>
+                                            
+                                            <!-- Part 3 Questions -->
+                                            <template x-if="regularSpeakingCurrentPart === 3">
+                                                <div>
+                                                    <template x-for="(q, index) in regularSpeakingQuestions.part3" :key="q.id || index">
+                                                        <div class="bg-white border border-gray-200 rounded-lg p-3 flex items-start justify-between group">
+                                                            <div class="flex-1 min-w-0">
+                                                                <p class="text-sm font-medium text-gray-900 mb-1"><span x-text="index + 1"></span>. <span x-text="q.question"></span></p>
+                                                                <p x-show="q.tags" class="text-xs text-gray-500">Tags: <span x-text="q.tags"></span></p>
+                                                            </div>
+                                                            <div class="flex items-center gap-2 ml-2" x-show="regularSpeakingEditMode || !regularSpeakingExamSaved">
+                                                                <button @click="editRegularSpeakingQuestion(3, index)" class="text-blue-600 hover:text-blue-700 opacity-0 group-hover:opacity-100 transition text-xs">
+                                                                    Edit
+                                                                </button>
+                                                                <button @click="removeRegularSpeakingQuestion(3, index)" class="text-red-600 hover:text-red-700 opacity-0 group-hover:opacity-100 transition text-xs">
+                                                                    Delete
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    </template>
+                                                    <div x-show="regularSpeakingQuestions.part3.length === 0" class="text-center py-8 text-gray-400 text-sm">
+                                                        No questions added yet for Part 3. Fill in the form above and click "Add Prompt".
+                                                    </div>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -3241,46 +4464,165 @@
         </div>
     </div>
 
-    <!-- 3. Manual Add Test Modal (UPDATED WITH READING OPTION) -->
-    <div x-show="showModal === 'addTest'" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" x-cloak>
+    <!-- Add Regular Writing Exam Modal -->
+    <div x-show="showModal === 'addRegularWriting'" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" x-cloak>
         <div class="bg-white rounded-xl p-6 w-full max-w-md shadow-2xl">
-            <h3 class="text-xl font-bold mb-4">Add Test Question</h3>
-            <form action="/admin/add-test" method="POST" class="space-y-4">
-                <input type="text" name="question" placeholder="Question" required class="w-full border p-2 rounded">
-                <select name="category" class="w-full border p-2 rounded">
-                    <option value="Speaking">Speaking</option>
-                    <option value="Listening">Listening</option>
-                    <option value="Writing">Writing</option>
-                    <option value="Reading">Reading</option> <!-- Added Reading -->
-                </select>
-                <div class="flex justify-end gap-2"><button type="button" @click="showModal = false" class="px-4 py-2 border rounded">Cancel</button><button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded">Save</button></div>
-            </form>
-        </div>
-    </div>
-    
-    <!-- 3b. Edit Test Modal (UPDATED WITH READING OPTION) -->
-    <div x-show="showModal === 'editTest'" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" x-cloak>
-        <div class="bg-white rounded-xl p-6 w-full max-w-md shadow-2xl">
-            <h3 class="text-xl font-bold mb-4">Edit Test Question</h3>
-            <form action="/admin/edit-test" method="POST" class="space-y-4">
-                <input type="hidden" name="id" x-model="editItem.id">
-                <div><label class="text-xs text-gray-500">Question</label><input type="text" name="question" x-model="editItem.question" required class="w-full border p-2 rounded"></div>
-                <div><label class="text-xs text-gray-500">Category</label>
-                    <select name="category" x-model="editItem.category" class="w-full border p-2 rounded">
-                        <option value="Speaking">Speaking</option>
-                        <option value="Listening">Listening</option>
-                        <option value="Writing">Writing</option>
-                        <option value="Reading">Reading</option> <!-- Added Reading -->
-                    </select>
+            <h3 class="text-xl font-bold mb-4 text-blue-800">Create New Writing Exam</h3>
+            <form @submit.prevent="
+                fetch('/admin/add-regular-writing-exam', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ title: editItem.title, description: editItem.description })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        initRegularWritingExams();
+                        showModal = false;
+                        editItem = {};
+                        regularWritingView = 'list';
+                        openRegularWritingExamDetail(data.exam);
+                    } else {
+                        alert('Error: ' + (data.error || 'Unknown error'));
+                    }
+                })
+                .catch(err => alert('Error: ' + err.message));
+            " class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Title</label>
+                    <input type="text" x-model="editItem.title" placeholder="e.g., General Writing Practice 3" required class="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                 </div>
-                <div class="flex justify-end gap-2 mt-4"><button type="button" @click="showModal = false" class="px-4 py-2 border rounded">Cancel</button><button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded">Update</button></div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Details/Description</label>
+                    <textarea x-model="editItem.description" placeholder="e.g., Focuses on formal letter writing and opinion essays." class="w-full border border-gray-300 rounded-lg p-2 h-24 resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"></textarea>
+                </div>
+                <div class="flex justify-end gap-2 mt-6">
+                    <button type="button" @click="showModal = false; editItem = {}" class="px-4 py-2 border border-gray-300 rounded text-gray-600 hover:bg-gray-50 transition">Cancel</button>
+                    <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition">Create Exam</button>
+                </div>
             </form>
         </div>
     </div>
-    
-    <!-- AI Gen -->
-    <div x-show="showModal === 'generateAI'" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" x-cloak><div class="bg-white rounded-xl p-6 w-full max-w-md shadow-2xl border-t-4 border-purple-500"><h3 class="text-xl font-bold mb-2 text-gray-800">✨ AI Question Generator</h3><p class="text-sm text-gray-500 mb-4">Enter a topic, and Gemini AI will create a test question for you.</p><form action="/admin/generate-test" method="POST" class="space-y-4"><div><label class="block text-sm font-medium text-gray-700">Topic / Context</label><input type="text" name="topic" placeholder="e.g. Past Tense Verbs..." required class="w-full border p-2 rounded"></div><div class="flex justify-end gap-2 mt-6"><button type="button" @click="showModal = false" class="px-4 py-2 border rounded text-gray-600">Cancel</button><button type="submit" class="px-4 py-2 ai-gradient text-white rounded shadow-md hover:opacity-90">Generate & Save</button></div></form></div></div>
-    
+
+    <!-- Add Regular Reading Exam Modal -->
+    <div x-show="showModal === 'addRegularReading'" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" x-cloak>
+        <div class="bg-white rounded-xl p-6 w-full max-w-md shadow-2xl">
+            <h3 class="text-xl font-bold mb-4 text-green-800">Create New Reading Exam</h3>
+            <form @submit.prevent="
+                fetch('/admin/add-regular-reading-exam', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ title: editItem.title, description: editItem.description })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        initRegularReadingExams();
+                        showModal = false;
+                        editItem = {};
+                        regularReadingView = 'list';
+                    } else {
+                        alert('Error: ' + (data.error || 'Unknown error'));
+                    }
+                })
+                .catch(err => alert('Error: ' + err.message));
+            " class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Title</label>
+                    <input type="text" x-model="editItem.title" placeholder="e.g., Reading Comprehension: Science & Nature" required class="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-green-500 focus:border-green-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Details/Description</label>
+                    <textarea x-model="editItem.description" placeholder="e.g., Intermediate level text about climate change." class="w-full border border-gray-300 rounded-lg p-2 h-24 resize-none focus:ring-2 focus:ring-green-500 focus:border-green-500"></textarea>
+                </div>
+                <div class="flex justify-end gap-2 mt-6">
+                    <button type="button" @click="showModal = false; editItem = {}" class="px-4 py-2 border border-gray-300 rounded text-gray-600 hover:bg-gray-50 transition">Cancel</button>
+                    <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition">Create Exam</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add Regular Listening Exam Modal -->
+    <div x-show="showModal === 'addRegularListening'" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" x-cloak>
+        <div class="bg-white rounded-xl p-6 w-full max-w-md shadow-2xl">
+            <h3 class="text-xl font-bold mb-4 text-purple-800">Create New Listening Exam</h3>
+            <form @submit.prevent="
+                fetch('/admin/add-regular-listening-exam', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ title: editItem.title, description: editItem.description })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        initRegularListeningExams();
+                        showModal = false;
+                        editItem = {};
+                        regularListeningView = 'list';
+                        openRegularListeningExamDetail(data.exam);
+                    } else {
+                        alert('Error: ' + (data.error || 'Unknown error'));
+                    }
+                })
+                .catch(err => alert('Error: ' + err.message));
+            " class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Exam Title</label>
+                    <input type="text" x-model="editItem.title" placeholder="e.g., Daily Conversation Practice" required class="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                    <textarea x-model="editItem.description" placeholder="e.g., Focus on phone numbers and dates" class="w-full border border-gray-300 rounded-lg p-2 h-24 resize-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"></textarea>
+                </div>
+                <div class="flex justify-end gap-2 mt-6">
+                    <button type="button" @click="showModal = false; editItem = {}" class="px-4 py-2 border border-gray-300 rounded text-gray-600 hover:bg-gray-50 transition">Cancel</button>
+                    <button type="submit" class="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 transition">Create</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add Regular Speaking Exam Modal -->
+    <div x-show="showModal === 'addRegularSpeaking'" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" x-cloak>
+        <div class="bg-white rounded-xl p-6 w-full max-w-md shadow-2xl">
+            <h3 class="text-xl font-bold mb-4 text-yellow-800">Create New Speaking Exam</h3>
+            <form @submit.prevent="
+                fetch('/admin/add-regular-speaking-exam', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ title: editItem.title, description: editItem.description })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        initRegularSpeakingExams();
+                        showModal = false;
+                        editItem = {};
+                        regularSpeakingView = 'list';
+                        openRegularSpeakingExamDetail(data.exam);
+                    } else {
+                        alert('Error: ' + (data.error || 'Unknown error'));
+                    }
+                })
+                .catch(err => alert('Error: ' + err.message));
+            " class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Title</label>
+                    <input type="text" x-model="editItem.title" placeholder="e.g., IELTS Speaking Test 12: Family & Hobbies" required class="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                    <textarea x-model="editItem.description" placeholder="e.g., Focuses on present tense and describing relationships." class="w-full border border-gray-300 rounded-lg p-2 h-24 resize-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500"></textarea>
+                </div>
+                <div class="flex justify-end gap-2 mt-6">
+                    <button type="button" @click="showModal = false; editItem = {}" class="px-4 py-2 border border-gray-300 rounded text-gray-600 hover:bg-gray-50 transition">Cancel</button>
+                    <button type="submit" class="px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700 transition">Create Exam</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Add ABEL -->
     <div x-show="showModal === 'addAbel'" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" x-cloak>
         <div class="bg-white rounded-xl p-6 w-full max-w-2xl shadow-2xl max-h-[90vh] overflow-y-auto">

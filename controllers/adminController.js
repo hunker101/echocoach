@@ -26,7 +26,6 @@ const adminController = {
             totalModules: db.pendingModules.length, 
             validatedModules: validatedCount,       
             pendingModules: pendingCount,           
-            totalQuestions: db.assessments.length,
             totalAbel: db.finalAssessments.length,
             recentUsers: db.users.slice(-5).reverse()
         };
@@ -38,12 +37,12 @@ const adminController = {
             users: db.users,
             pendingModules: db.pendingModules, 
             modules: db.modules, // Add this line to pass admin modules
-            assessments: db.assessments,
             finalAssessments: db.finalAssessments,
-            tags: db.tags, // Pass tags database
-            // Regular User Test Bank data (separate from IELTS)
-            regularExams: db.regularExams,
-            regularTags: db.regularTags
+            regularWritingExams: db.regularWritingExams || [],
+            regularReadingExams: db.regularReadingExams || [],
+            regularListeningExams: db.regularListeningExams || [],
+            regularSpeakingExams: db.regularSpeakingExams || [],
+            tags: db.tags // Pass tags database
         });
     },
 
@@ -113,30 +112,6 @@ const adminController = {
     deleteModule: (req, res) => { 
         db.modules = db.modules.filter(m => m.id != req.body.id);
         res.redirect('/admin/manage?tab=modules'); 
-    },
-
-    // --- Regular User Test Bank Management ---
-    addAssessment: (req, res) => {
-        db.assessments.push({ id: Date.now(), category: req.body.category, question: req.body.question });
-        res.redirect('/admin/manage?tab=testbank');
-    },
-    editAssessment: (req, res) => {
-        const index = db.assessments.findIndex(a => a.id == req.body.id);
-        if (index > -1) {
-            db.assessments[index] = { ...db.assessments[index], category: req.body.category, question: req.body.question, id: parseInt(req.body.id) };
-        }
-        res.redirect('/admin/manage?tab=testbank');
-    },
-    deleteAssessment: (req, res) => {
-        db.assessments = db.assessments.filter(a => a.id != req.body.id);
-        res.redirect('/admin/manage?tab=testbank');
-    },
-    generateQuestion: async (req, res) => {
-        const generatedData = await aiService.generateTestQuestion(req.body.topic);
-        if (generatedData) {
-            db.assessments.push({ id: Date.now(), ...generatedData, generatedByAI: true });
-        }
-        res.redirect('/admin/manage?tab=testbank');
     },
 
     // --- ABEL Final Assessment (IELTS Mock Exam) ---
@@ -572,361 +547,205 @@ const adminController = {
         }
     },
     
-    // ============================================
-    // REGULAR USER TEST BANK CONTROLLERS
-    // (Separate from IELTS - uses regularExams collection)
-    // ============================================
-    
-    // Add Regular Exam (mirrors addFinalAssessment but uses regularExams)
-    addRegularExam: (req, res) => {
-        const newQuestion = {
-            id: Date.now(),
-            type: req.body.type,
-            difficulty: req.body.difficulty || 'Standard',
-            prompt: req.body.prompt || '',
-            title: req.body.title || ''
-        };
-
-        // Handle Writing questions
-        if (req.body.type === 'Writing') {
-            newQuestion.taskNumber = parseInt(req.body.taskNumber) || 1;
-            newQuestion.title = req.body.title || '';
-            if (req.file) {
-                newQuestion.image = '/uploads/' + req.file.filename;
-            } else {
-                newQuestion.image = null;
-            }
-            newQuestion.description = req.body.prompt;
-        }
-        
-        // Handle Reading/Listening questions
-        if (req.body.type === 'Reading' || req.body.type === 'Listening') {
-            newQuestion.optionA = req.body.optionA || '';
-            newQuestion.optionB = req.body.optionB || '';
-            newQuestion.optionC = req.body.optionC || '';
-            newQuestion.optionD = req.body.optionD || '';
-            newQuestion.correctAnswer = parseInt(req.body.correctAnswer) || 1;
-            newQuestion.question = req.body.prompt;
-        }
-        
-        // Handle Speaking questions
-        if (req.body.type === 'Speaking') {
-            newQuestion.part = parseInt(req.body.part) || 1;
-            newQuestion.questionNumber = parseInt(req.body.questionNumber) || 1;
-            newQuestion.question1 = req.body.questionNumber == 1 ? req.body.prompt : null;
-            newQuestion.question2 = req.body.questionNumber == 2 ? req.body.prompt : null;
-        }
-
-        db.regularExams.push(newQuestion);
-        
-        const skillType = req.body.type ? req.body.type.toLowerCase() : '';
-        res.redirect(`/admin/manage?tab=regular&skill=${skillType}`);
-    },
-    
-    // Edit Regular Exam
-    editRegularExam: (req, res) => {
-        const index = db.regularExams.findIndex(a => a.id == req.body.id);
-        if (index > -1) {
-            const existing = db.regularExams[index];
-            const updated = {
-                ...existing,
-                id: parseInt(req.body.id),
-                type: req.body.type,
-                prompt: req.body.prompt || existing.prompt,
-                difficulty: req.body.difficulty || existing.difficulty || 'Standard'
+    // --- Regular User Test Bank - Writing Exams ---
+    addRegularWritingExam: (req, res) => {
+        try {
+            const newExam = {
+                id: Date.now(),
+                title: req.body.title || 'Untitled Exam',
+                description: req.body.description || '',
+                task1: null,
+                task2: null,
+                createdAt: new Date().toISOString()
             };
-
-            if (req.body.type === 'Writing') {
-                updated.taskNumber = parseInt(req.body.taskNumber) || 1;
-                updated.title = req.body.title || existing.title || '';
-                if (req.file) {
-                    updated.image = '/uploads/' + req.file.filename;
-                } else {
-                    updated.image = existing.image || null;
-                }
-                updated.description = req.body.prompt || existing.description;
-            }
-            
-            if (req.body.type === 'Reading' || req.body.type === 'Listening') {
-                updated.optionA = req.body.optionA || existing.optionA || '';
-                updated.optionB = req.body.optionB || existing.optionB || '';
-                updated.optionC = req.body.optionC || existing.optionC || '';
-                updated.optionD = req.body.optionD || existing.optionD || '';
-                updated.correctAnswer = parseInt(req.body.correctAnswer) || existing.correctAnswer || 1;
-                updated.question = req.body.prompt || existing.question;
-            }
-
-            if (req.body.type === 'Speaking') {
-                updated.part = parseInt(req.body.part) || existing.part || 1;
-                updated.questionNumber = parseInt(req.body.questionNumber) || existing.questionNumber || 1;
-                if (req.body.questionNumber == 1) {
-                    updated.question1 = req.body.prompt;
-                    updated.question2 = existing.question2 || null;
-                } else if (req.body.questionNumber == 2) {
-                    updated.question1 = existing.question1 || null;
-                    updated.question2 = req.body.prompt;
-                }
-            }
-
-            db.regularExams[index] = updated;
-        }
-        
-        const skillType = req.body.type ? req.body.type.toLowerCase() : '';
-        res.redirect(`/admin/manage?tab=regular&skill=${skillType}`);
-    },
-    
-    // Delete Regular Exam
-    deleteRegularExam: (req, res) => {
-        const index = db.regularExams.findIndex(a => a.id == req.body.id);
-        if (index > -1) {
-            const deleted = db.regularExams[index];
-            db.regularExams.splice(index, 1);
-            const skillType = deleted.type ? deleted.type.toLowerCase() : '';
-            res.redirect(`/admin/manage?tab=regular&skill=${skillType}`);
-        } else {
-            res.redirect('/admin/manage?tab=regular');
+            db.regularWritingExams.push(newExam);
+            res.json({ success: true, exam: newExam });
+        } catch (error) {
+            res.json({ success: false, error: error.message });
         }
     },
-    
-    // Save Regular Writing Exam
     saveRegularWritingExam: (req, res) => {
         try {
-            const index = db.regularExams.findIndex(a => a.id == req.body.id);
-            if (index > -1) {
-                const exam = db.regularExams[index];
-                
-                let task1Image = null;
-                if (req.files && req.files.task1Image && req.files.task1Image[0]) {
-                    task1Image = '/uploads/' + req.files.task1Image[0].filename;
-                } else if (exam.task1 && exam.task1.image) {
-                    task1Image = exam.task1.image;
-                }
-                
-                let task2Image = null;
-                if (req.files && req.files.task2Image && req.files.task2Image[0]) {
-                    task2Image = '/uploads/' + req.files.task2Image[0].filename;
-                } else if (exam.task2 && exam.task2.image) {
-                    task2Image = exam.task2.image;
-                }
-                
-                exam.task1 = {
-                    description: req.body.task1Description || '',
-                    tags: req.body.task1Tags || '',
-                    image: task1Image
-                };
-                exam.task2 = {
-                    description: req.body.task2Description || '',
-                    tags: req.body.task2Tags || '',
-                    image: task2Image
-                };
-                db.regularExams[index] = exam;
-                res.json({ 
-                    success: true, 
-                    message: 'Regular writing exam saved successfully',
-                    task1Image: task1Image,
-                    task2Image: task2Image
-                });
-            } else {
-                res.json({ success: false, error: 'Regular writing exam not found' });
+            const examId = parseInt(req.body.examId);
+            const index = db.regularWritingExams.findIndex(a => a.id === examId);
+            
+            if (index === -1) {
+                return res.json({ success: false, error: 'Writing exam not found' });
             }
+            
+            const exam = db.regularWritingExams[index];
+            
+            // Handle task1 image
+            let task1Image = null;
+            if (req.files && req.files.task1Image && req.files.task1Image[0]) {
+                task1Image = '/uploads/' + req.files.task1Image[0].filename;
+            } else if (exam.task1 && exam.task1.image) {
+                task1Image = exam.task1.image;
+            }
+            
+            // Handle task2 image
+            let task2Image = null;
+            if (req.files && req.files.task2Image && req.files.task2Image[0]) {
+                task2Image = '/uploads/' + req.files.task2Image[0].filename;
+            } else if (exam.task2 && exam.task2.image) {
+                task2Image = exam.task2.image;
+            }
+            
+            exam.task1 = {
+                description: req.body.task1Description || '',
+                tags: req.body.task1Tags || '',
+                image: task1Image
+            };
+            exam.task2 = {
+                description: req.body.task2Description || '',
+                tags: req.body.task2Tags || '',
+                image: task2Image
+            };
+            
+            db.regularWritingExams[index] = exam;
+            res.json({ 
+                success: true, 
+                message: 'Writing exam saved successfully',
+                task1Image: task1Image,
+                task2Image: task2Image
+            });
         } catch (error) {
-            console.error('Error saving regular writing exam:', error);
-            res.json({ success: false, error: error.message || 'Failed to save regular writing exam' });
+            res.json({ success: false, error: error.message });
         }
     },
     
-    // Save Regular Reading Exam
+    // --- Regular User Test Bank - Reading Exams ---
+    addRegularReadingExam: (req, res) => {
+        try {
+            const newExam = {
+                id: Date.now(),
+                title: req.body.title || 'Untitled Exam',
+                description: req.body.description || '',
+                passageTitle: null,
+                passageContent: null,
+                questions: [],
+                createdAt: new Date().toISOString()
+            };
+            db.regularReadingExams.push(newExam);
+            res.json({ success: true, exam: newExam });
+        } catch (error) {
+            res.json({ success: false, error: error.message });
+        }
+    },
     saveRegularReadingExam: (req, res) => {
         try {
-            res.setHeader('Content-Type', 'application/json');
+            const examId = parseInt(req.body.examId);
+            const index = db.regularReadingExams.findIndex(a => a.id === examId);
             
-            if (!req.body || (req.body.id === undefined && req.body.id === null)) {
-                return res.json({ 
-                    success: false, 
-                    error: 'Exam ID is required' 
-                });
+            if (index === -1) {
+                return res.json({ success: false, error: 'Reading exam not found' });
             }
             
-            const examId = parseInt(req.body.id);
+            const exam = db.regularReadingExams[index];
             
-            if (isNaN(examId)) {
-                return res.json({ 
-                    success: false, 
-                    error: 'Invalid exam ID: ' + req.body.id 
-                });
-            }
+            exam.passageTitle = req.body.passageTitle || '';
+            exam.passageContent = req.body.passageContent || '';
+            exam.questions = req.body.questions || [];
             
-            let index = db.regularExams.findIndex(a => {
-                const aId = parseInt(a.id);
-                return aId === examId && a.type === 'Reading';
+            db.regularReadingExams[index] = exam;
+            res.json({ 
+                success: true, 
+                message: 'Reading exam saved successfully'
             });
-            
-            if (index === -1) {
-                index = db.regularExams.findIndex(a => {
-                    return (a.id == examId || parseInt(a.id) == examId) && a.type === 'Reading';
-                });
-            }
-            
-            if (index === -1) {
-                index = db.regularExams.findIndex(a => {
-                    return String(a.id) === String(examId) && a.type === 'Reading';
-                });
-            }
-            
-            if (index > -1) {
-                const exam = db.regularExams[index];
-                exam.passage = req.body.passage || '';
-                try {
-                    exam.questions = JSON.parse(req.body.questions || '[]');
-                } catch (e) {
-                    exam.questions = [];
-                }
-                db.regularExams[index] = exam;
-                return res.json({ 
-                    success: true, 
-                    message: 'Regular reading exam saved successfully'
-                });
-            } else {
-                return res.json({ 
-                    success: false, 
-                    error: 'Regular reading exam not found. ID: ' + examId
-                });
-            }
         } catch (error) {
-            console.error('Error saving regular reading exam:', error);
-            return res.json({ 
-                success: false, 
-                error: error.message || 'Failed to save regular reading exam' 
-            });
+            res.json({ success: false, error: error.message });
         }
     },
     
-    // Save Regular Listening Exam
+    // --- Regular User Test Bank - Listening Exams ---
+    addRegularListeningExam: (req, res) => {
+        try {
+            const newExam = {
+                id: Date.now(),
+                title: req.body.title || 'Untitled Exam',
+                description: req.body.description || '',
+                narration: null,
+                scriptBlocks: [],
+                questions: [],
+                createdAt: new Date().toISOString()
+            };
+            db.regularListeningExams.push(newExam);
+            res.json({ success: true, exam: newExam });
+        } catch (error) {
+            res.json({ success: false, error: error.message });
+        }
+    },
     saveRegularListeningExam: (req, res) => {
         try {
-            res.setHeader('Content-Type', 'application/json');
+            const examId = parseInt(req.body.examId);
+            const index = db.regularListeningExams.findIndex(a => a.id === examId);
             
-            if (!req.body || (req.body.id === undefined && req.body.id === null)) {
-                return res.json({ 
-                    success: false, 
-                    error: 'Exam ID is required' 
-                });
+            if (index === -1) {
+                return res.json({ success: false, error: 'Listening exam not found' });
             }
             
-            const examId = parseInt(req.body.id);
+            const exam = db.regularListeningExams[index];
             
-            if (isNaN(examId)) {
-                return res.json({ 
-                    success: false, 
-                    error: 'Invalid exam ID: ' + req.body.id 
-                });
-            }
+            exam.narration = req.body.narration || '';
+            exam.scriptBlocks = req.body.scriptBlocks || [];
+            exam.questions = req.body.questions || [];
             
-            let index = db.regularExams.findIndex(a => {
-                const aId = parseInt(a.id);
-                return aId === examId && a.type === 'Listening';
+            db.regularListeningExams[index] = exam;
+            res.json({ 
+                success: true, 
+                message: 'Listening exam saved successfully'
             });
-            
-            if (index === -1) {
-                index = db.regularExams.findIndex(a => {
-                    return (a.id == examId || parseInt(a.id) == examId) && a.type === 'Listening';
-                });
-            }
-            
-            if (index === -1) {
-                index = db.regularExams.findIndex(a => {
-                    return String(a.id) === String(examId) && a.type === 'Listening';
-                });
-            }
-            
-            if (index > -1) {
-                const exam = db.regularExams[index];
-                exam.narration = req.body.narration || '';
-                exam.speakers = req.body.speakers || [];
-                exam.questions = req.body.questions || [];
-                db.regularExams[index] = exam;
-                return res.json({ 
-                    success: true, 
-                    message: 'Regular listening exam saved successfully'
-                });
-            } else {
-                return res.json({ 
-                    success: false, 
-                    error: 'Regular listening exam not found. ID: ' + examId
-                });
-            }
         } catch (error) {
-            console.error('Error saving regular listening exam:', error);
-            return res.json({ 
-                success: false, 
-                error: error.message || 'Failed to save regular listening exam' 
-            });
+            res.json({ success: false, error: error.message });
         }
     },
     
-    // Save Regular Speaking Exam
+    // --- Regular User Test Bank - Speaking Exams ---
+    addRegularSpeakingExam: (req, res) => {
+        try {
+            const newExam = {
+                id: Date.now(),
+                title: req.body.title || 'Untitled Exam',
+                description: req.body.description || '',
+                moduleContent: null,
+                questions: {
+                    part1: [],
+                    part2: [],
+                    part3: []
+                },
+                createdAt: new Date().toISOString()
+            };
+            db.regularSpeakingExams.push(newExam);
+            res.json({ success: true, exam: newExam });
+        } catch (error) {
+            res.json({ success: false, error: error.message });
+        }
+    },
     saveRegularSpeakingExam: (req, res) => {
         try {
-            res.setHeader('Content-Type', 'application/json');
+            const examId = parseInt(req.body.examId);
+            const index = db.regularSpeakingExams.findIndex(a => a.id === examId);
             
-            if (!req.body || (req.body.id === undefined && req.body.id === null)) {
-                return res.json({ 
-                    success: false, 
-                    error: 'Exam ID is required' 
-                });
+            if (index === -1) {
+                return res.json({ success: false, error: 'Speaking exam not found' });
             }
             
-            const examId = parseInt(req.body.id);
+            const exam = db.regularSpeakingExams[index];
             
-            if (isNaN(examId)) {
-                return res.json({ 
-                    success: false, 
-                    error: 'Invalid exam ID: ' + req.body.id 
-                });
-            }
+            exam.moduleContent = req.body.moduleContent || '';
+            exam.questions = {
+                part1: req.body.questions?.part1 || [],
+                part2: req.body.questions?.part2 || [],
+                part3: req.body.questions?.part3 || []
+            };
             
-            let index = db.regularExams.findIndex(a => {
-                const aId = parseInt(a.id);
-                return aId === examId && a.type === 'Speaking';
+            db.regularSpeakingExams[index] = exam;
+            res.json({ 
+                success: true, 
+                message: 'Speaking exam saved successfully'
             });
-            
-            if (index === -1) {
-                index = db.regularExams.findIndex(a => {
-                    return (a.id == examId || parseInt(a.id) == examId) && a.type === 'Speaking';
-                });
-            }
-            
-            if (index === -1) {
-                index = db.regularExams.findIndex(a => {
-                    return String(a.id) === String(examId) && a.type === 'Speaking';
-                });
-            }
-            
-            if (index > -1) {
-                const exam = db.regularExams[index];
-                exam.moduleContent = req.body.moduleContent || '';
-                try {
-                    exam.questions = JSON.parse(req.body.questions || '[]');
-                } catch (e) {
-                    exam.questions = [];
-                }
-                db.regularExams[index] = exam;
-                return res.json({ 
-                    success: true, 
-                    message: 'Regular speaking exam saved successfully'
-                });
-            } else {
-                return res.json({ 
-                    success: false, 
-                    error: 'Regular speaking exam not found. ID: ' + examId
-                });
-            }
         } catch (error) {
-            console.error('Error saving regular speaking exam:', error);
-            return res.json({ 
-                success: false, 
-                error: error.message || 'Failed to save regular speaking exam' 
-            });
+            res.json({ success: false, error: error.message });
         }
     }
 };

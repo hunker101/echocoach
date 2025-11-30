@@ -41,12 +41,6 @@ router.post('/admin/generate-module', isAuth, adminController.generateModule);
 router.post('/admin/edit-module', isAuth, adminController.editModule);
 router.post('/admin/delete-module', isAuth, adminController.deleteModule);
 
-// Test Bank Actions
-router.post('/admin/add-test', isAuth, adminController.addAssessment);
-router.post('/admin/edit-test', isAuth, adminController.editAssessment);
-router.post('/admin/delete-test', isAuth, adminController.deleteAssessment);
-router.post('/admin/generate-test', isAuth, adminController.generateQuestion);
-
 // ABEL Actions (with file upload support for Writing questions)
 const multer = require('multer');
 const path = require('path');
@@ -107,18 +101,20 @@ router.post('/admin/save-reading-exam', isAuth, adminController.saveReadingExam)
 router.post('/admin/save-listening-exam', isAuth, adminController.saveListeningExam);
 router.post('/admin/save-speaking-exam', isAuth, adminController.saveSpeakingExam);
 
-// ============================================
-// REGULAR USER TEST BANK ROUTES
-// (Separate from IELTS - uses /admin/regular/*)
-// ============================================
-router.post('/admin/add-regular', isAuth, upload.single('image'), adminController.addRegularExam);
-router.post('/admin/edit-regular', isAuth, upload.single('image'), adminController.editRegularExam);
-router.post('/admin/delete-regular', isAuth, adminController.deleteRegularExam);
-
-// Regular Exam Save Routes (with file upload support for task images)
+// Regular User Test Bank - Writing Exams
+router.post('/admin/add-regular-writing-exam', isAuth, adminController.addRegularWritingExam);
 router.post('/admin/save-regular-writing-exam', isAuth, uploadFields, adminController.saveRegularWritingExam);
+
+// Regular User Test Bank - Reading Exams
+router.post('/admin/add-regular-reading-exam', isAuth, adminController.addRegularReadingExam);
 router.post('/admin/save-regular-reading-exam', isAuth, adminController.saveRegularReadingExam);
+
+// Regular User Test Bank - Listening Exams
+router.post('/admin/add-regular-listening-exam', isAuth, adminController.addRegularListeningExam);
 router.post('/admin/save-regular-listening-exam', isAuth, adminController.saveRegularListeningExam);
+
+// Regular User Test Bank - Speaking Exams
+router.post('/admin/add-regular-speaking-exam', isAuth, adminController.addRegularSpeakingExam);
 router.post('/admin/save-regular-speaking-exam', isAuth, adminController.saveRegularSpeakingExam);
 
 module.exports = router;

@@ -59,8 +59,19 @@
     ],
     tagsData: {},
     finalAssessmentsList: [],
-    mockExamView: 'list', // 'list' or 'skill'
-    mockExamSkill: null, // 'writing', 'reading', 'listening', 'speaking'
+    mockExamView: (() => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const skill = urlParams.get('skill');
+        return skill ? 'skill' : 'list';
+    })(), // 'list' or 'skill'
+    mockExamSkill: (() => {
+        const urlParams = new URLSearchParams(window.location.search);
+        return urlParams.get('skill') || null;
+    })(), // 'writing', 'reading', 'listening', 'speaking'
+    getQuestionCount(skill) {
+        if (!this.finalAssessmentsList || this.finalAssessmentsList.length === 0) return 0;
+        return this.finalAssessmentsList.filter(q => q && q.type && q.type.toLowerCase() === skill.toLowerCase()).length;
+    },
     initTags() {
         const tagsDataElement = document.getElementById('tags-data');
         if (tagsDataElement) {
@@ -69,17 +80,47 @@
     },
     initFinalAssessments() {
         const finalAssessmentsElement = document.getElementById('final-assessments-data');
-        if (finalAssessmentsElement) {
-            this.finalAssessmentsList = JSON.parse(finalAssessmentsElement.textContent) || [];
+        if (finalAssessmentsElement && finalAssessmentsElement.textContent) {
+            try {
+                const data = JSON.parse(finalAssessmentsElement.textContent) || [];
+                this.finalAssessmentsList = Array.isArray(data) ? data : [];
+            } catch (e) {
+                console.error('Error parsing final assessments data:', e);
+                this.finalAssessmentsList = [];
+            }
+        } else {
+            this.finalAssessmentsList = [];
         }
     },
     getFilteredMockExamQuestions() {
-        if (!this.mockExamSkill) return this.finalAssessmentsList || [];
-        if (!this.finalAssessmentsList || this.finalAssessmentsList.length === 0) return [];
-        return this.finalAssessmentsList.filter(q => {
+        // Always initialize data first
+        if (this.finalAssessmentsList.length === 0) {
+            this.initFinalAssessments();
+        }
+        
+        if (!this.mockExamSkill) {
+            return this.finalAssessmentsList || [];
+        }
+        
+        if (!this.finalAssessmentsList || this.finalAssessmentsList.length === 0) {
+            return [];
+        }
+        
+        const skillType = (this.mockExamSkill || '').toLowerCase();
+        const filtered = this.finalAssessmentsList.filter(q => {
             if (!q || !q.type) return false;
-            return q.type.toLowerCase() === this.mockExamSkill.toLowerCase();
+            const questionType = (q.type || '').toLowerCase();
+            return questionType === skillType;
         });
+        
+        return filtered;
+    },
+    getQuestionCount(skill) {
+        if (!this.finalAssessmentsList || this.finalAssessmentsList.length === 0) {
+            this.initFinalAssessments();
+        }
+        if (!skill || !this.finalAssessmentsList) return 0;
+        return this.finalAssessmentsList.filter(q => q && q.type && q.type.toLowerCase() === skill.toLowerCase()).length;
     },
     getCurrentTags() {
         if (!this.activeSkill || !this.tagsData[this.activeSkill]) {
@@ -406,7 +447,8 @@
     <script id="tags-data" type="application/json"><%- JSON.stringify(tags) %></script>
     
     <!-- Final Assessments Data (hidden, for Alpine.js initialization) -->
-    <script id="final-assessments-data" type="application/json"><%- JSON.stringify(finalAssessments) %></script>
+    <script id="final-assessments-data" type="application/json"><%- JSON.stringify(finalAssessments || []) %></script>
+    
 
     <!-- Top Navigation -->
     <nav class="bg-white shadow-sm border-b border-gray-200 fixed w-full z-30">
@@ -1063,7 +1105,23 @@
             </div>
 
             <!-- 5. EILTS MOCK EXAM TAB -->
-            <div x-show="currentTab === 'abel'" x-cloak x-transition.opacity x-init="initFinalAssessments()" @click="initFinalAssessments()">
+            <div x-show="currentTab === 'abel'" 
+                 x-cloak 
+                 x-transition.opacity 
+                 x-init="
+                     initFinalAssessments();
+                     if (mockExamSkill) { 
+                         mockExamView = 'skill';
+                     }
+                 "
+                 x-effect="
+                     if (currentTab === 'abel') { 
+                         initFinalAssessments();
+                         if (mockExamSkill && mockExamView !== 'skill') {
+                             mockExamView = 'skill';
+                         }
+                     }
+                 ">
                 <!-- Skill Cards View -->
                 <template x-if="mockExamView === 'list'">
                     <div>
@@ -1071,19 +1129,19 @@
                             <h2 class="text-2xl font-bold text-gray-800">EILTS mock exam</h2>
                         </div>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div @click="mockExamView = 'skill'; mockExamSkill = 'writing'; initFinalAssessments()" class="flex items-center gap-4 cursor-pointer group hover:bg-blue-50 p-4 rounded-xl transition border border-gray-100 hover:border-blue-200 bg-gray-50">
+                            <div @click="initFinalAssessments(); mockExamView = 'skill'; mockExamSkill = 'writing';" class="flex items-center gap-4 cursor-pointer group hover:bg-blue-50 p-4 rounded-xl transition border border-gray-100 hover:border-blue-200 bg-gray-50">
                                 <div class="bg-blue-100 p-3 rounded-full text-blue-600"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg></div>
                                 <div><h4 class="font-bold text-gray-800 text-lg group-hover:text-blue-700 mb-1">Writing</h4><p class="text-sm text-gray-500">Develop coherent and well-structured responses</p></div>
                             </div>
-                            <div @click="mockExamView = 'skill'; mockExamSkill = 'reading'; initFinalAssessments()" class="flex items-center gap-4 cursor-pointer group hover:bg-blue-50 p-4 rounded-xl transition border border-gray-100 hover:border-blue-200 bg-gray-50">
+                            <div @click="initFinalAssessments(); mockExamView = 'skill'; mockExamSkill = 'reading';" class="flex items-center gap-4 cursor-pointer group hover:bg-blue-50 p-4 rounded-xl transition border border-gray-100 hover:border-blue-200 bg-gray-50">
                                 <div class="bg-green-100 p-3 rounded-full text-green-600"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg></div>
                                 <div><h4 class="font-bold text-gray-800 text-lg group-hover:text-blue-700">Reading</h4><p class="text-sm text-gray-500">Boost your comprehension and skimming skills</p></div>
                             </div>
-                            <div @click="mockExamView = 'skill'; mockExamSkill = 'listening'; initFinalAssessments()" class="flex items-center gap-4 cursor-pointer group hover:bg-blue-50 p-4 rounded-xl transition border border-gray-100 hover:border-blue-200 bg-gray-50">
+                            <div @click="initFinalAssessments(); mockExamView = 'skill'; mockExamSkill = 'listening';" class="flex items-center gap-4 cursor-pointer group hover:bg-blue-50 p-4 rounded-xl transition border border-gray-100 hover:border-blue-200 bg-gray-50">
                                 <div class="bg-purple-100 p-3 rounded-full text-purple-600"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"></path></svg></div>
                                 <div><h4 class="font-bold text-gray-800 text-lg group-hover:text-blue-700">Listening</h4><p class="text-sm text-gray-500">Enhance your focus and audio understanding</p></div>
                             </div>
-                            <div @click="mockExamView = 'skill'; mockExamSkill = 'speaking'; initFinalAssessments()" class="flex items-center gap-4 cursor-pointer group hover:bg-blue-50 p-4 rounded-xl transition border border-gray-100 hover:border-blue-200 bg-gray-50">
+                            <div @click="initFinalAssessments(); mockExamView = 'skill'; mockExamSkill = 'speaking';" class="flex items-center gap-4 cursor-pointer group hover:bg-blue-50 p-4 rounded-xl transition border border-gray-100 hover:border-blue-200 bg-gray-50">
                                 <div class="bg-yellow-100 p-3 rounded-full text-yellow-600"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg></div>
                                 <div><h4 class="font-bold text-gray-800 text-lg group-hover:text-blue-700">Speaking</h4><p class="text-sm text-gray-500">Build fluency, improve pronunciation, and speak with clarity</p></div>
                             </div>
@@ -1104,9 +1162,82 @@
                             <button @click="showModal = 'addAbel'; editItem = { type: mockExamSkill.charAt(0).toUpperCase() + mockExamSkill.slice(1) }; previewImage = null" class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition">+ Add Question</button>
                         </div>
                         <div class="space-y-4">
-                            <template x-for="question in getFilteredMockExamQuestions()" :key="question.id">
+                            <!-- Render based on skill type -->
+                            <template x-for="(question, index) in getFilteredMockExamQuestions()" :key="question.id">
+                                <!-- Reading/Listening Questions (most common) -->
+                                <div x-show="question.type === 'Reading' || question.type === 'Listening'" class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden group hover:shadow-md transition">
+                                    <div class="p-6">
+                                        <div class="flex justify-between items-start mb-4">
+                                            <div class="flex items-center gap-3">
+                                                <span class="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide" 
+                                                      :class="question.type === 'Reading' ? 'bg-yellow-100 text-yellow-700' : 'bg-blue-100 text-blue-700'"
+                                                      x-text="question.type"></span>
+                                                <h3 class="text-xl font-bold text-gray-900">
+                                                    <span class="text-gray-500 font-normal text-lg" x-text="'Question ' + (index + 1)"></span>
+                                                </h3>
+                                            </div>
+                                            <div class="flex items-center gap-2 opacity-80 group-hover:opacity-100 transition">
+                                                <button :data-abel="JSON.stringify(question)" @click="showModal = 'editAbel'; editItem = JSON.parse($el.dataset.abel)" class="text-blue-500 hover:text-blue-700 p-2 rounded-full hover:bg-blue-50 transition" title="Edit">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                                </button>
+                                                <form action="/admin/delete-abel" method="POST" onsubmit="return confirm('Delete this item?');">
+                                                    <input type="hidden" name="id" :value="question.id">
+                                                    <button type="submit" class="text-red-500 hover:text-red-700 p-2 rounded-full hover:bg-red-50 transition">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="mb-6">
+                                            <div class="bg-purple-50 border-l-4 border-purple-500 p-4 rounded-r-lg">
+                                                <p class="text-lg text-gray-800 font-medium leading-relaxed" x-text="question.prompt || question.question || 'No question available.'"></p>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="space-y-3">
+                                            <div class="p-4 border-2 rounded-lg transition-all" :class="(question.correctAnswer || 1) === 1 ? 'border-green-500 bg-green-50 shadow-sm' : 'border-gray-200 bg-gray-50 hover:border-gray-300'">
+                                                <div class="flex items-start gap-3">
+                                                    <span class="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold" :class="(question.correctAnswer || 1) === 1 ? 'bg-green-500 text-white' : 'bg-gray-300 text-gray-700'">A</span>
+                                                    <p class="text-sm text-gray-700 flex-1" x-text="question.optionA || 'A. Option A'"></p>
+                                                    <template x-if="(question.correctAnswer || 1) === 1">
+                                                        <span class="flex-shrink-0 text-green-600 font-semibold text-xs">✓ Correct</span>
+                                                    </template>
+                                                </div>
+                                            </div>
+                                            <div class="p-4 border-2 rounded-lg transition-all" :class="(question.correctAnswer || 1) === 2 ? 'border-green-500 bg-green-50 shadow-sm' : 'border-gray-200 bg-gray-50 hover:border-gray-300'">
+                                                <div class="flex items-start gap-3">
+                                                    <span class="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold" :class="(question.correctAnswer || 1) === 2 ? 'bg-green-500 text-white' : 'bg-gray-300 text-gray-700'">B</span>
+                                                    <p class="text-sm text-gray-700 flex-1" x-text="question.optionB || 'B. Option B'"></p>
+                                                    <template x-if="(question.correctAnswer || 1) === 2">
+                                                        <span class="flex-shrink-0 text-green-600 font-semibold text-xs">✓ Correct</span>
+                                                    </template>
+                                                </div>
+                                            </div>
+                                            <div class="p-4 border-2 rounded-lg transition-all" :class="(question.correctAnswer || 1) === 3 ? 'border-green-500 bg-green-50 shadow-sm' : 'border-gray-200 bg-gray-50 hover:border-gray-300'">
+                                                <div class="flex items-start gap-3">
+                                                    <span class="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold" :class="(question.correctAnswer || 1) === 3 ? 'bg-green-500 text-white' : 'bg-gray-300 text-gray-700'">C</span>
+                                                    <p class="text-sm text-gray-700 flex-1" x-text="question.optionC || 'C. Option C'"></p>
+                                                    <template x-if="(question.correctAnswer || 1) === 3">
+                                                        <span class="flex-shrink-0 text-green-600 font-semibold text-xs">✓ Correct</span>
+                                                    </template>
+                                                </div>
+                                            </div>
+                                            <div class="p-4 border-2 rounded-lg transition-all" :class="(question.correctAnswer || 1) === 4 ? 'border-green-500 bg-green-50 shadow-sm' : 'border-gray-200 bg-gray-50 hover:border-gray-300'">
+                                                <div class="flex items-start gap-3">
+                                                    <span class="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold" :class="(question.correctAnswer || 1) === 4 ? 'bg-green-500 text-white' : 'bg-gray-300 text-gray-700'">D</span>
+                                                    <p class="text-sm text-gray-700 flex-1" x-text="question.optionD || 'D. Option D'"></p>
+                                                    <template x-if="(question.correctAnswer || 1) === 4">
+                                                        <span class="flex-shrink-0 text-green-600 font-semibold text-xs">✓ Correct</span>
+                                                    </template>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
                                 <!-- Writing Question Card -->
-                                <template x-if="question.type === 'Writing'">
+                                <div x-show="question.type === 'Writing'">
                                     <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden group hover:shadow-md transition">
                                         <div class="p-6">
                                             <div class="flex justify-between items-start mb-4">
@@ -1145,61 +1276,19 @@
                                             </div>
                                         </div>
                                     </div>
-                                </template>
-                                
-                                <!-- Reading/Listening Question Card -->
-                                <template x-if="question.type === 'Reading' || question.type === 'Listening'">
-                                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden group hover:shadow-md transition">
-                                        <div class="p-6">
-                                            <div class="flex justify-between items-start mb-4">
-                                                <h3 class="text-xl font-bold text-gray-900">
-                                                    <span x-text="question.type"></span>
-                                                    <span class="text-gray-500 font-normal text-lg" x-text="'Question ' + (question.questionNumber || (getFilteredMockExamQuestions().indexOf(question) + 1))"></span>
-                                                </h3>
-                                                <div class="flex items-center gap-2 opacity-80 group-hover:opacity-100 transition">
-                                                    <button :data-abel="JSON.stringify(question)" @click="showModal = 'editAbel'; editItem = JSON.parse($el.dataset.abel)" class="text-blue-500 hover:text-blue-700 p-2 rounded-full hover:bg-blue-50 transition" title="Edit">
-                                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-                                                    </button>
-                                                    <form action="/admin/delete-abel" method="POST" onsubmit="return confirm('Delete this item?');">
-                                                        <input type="hidden" name="id" :value="question.id">
-                                                        <button type="submit" class="text-red-500 hover:text-red-700 p-2 rounded-full hover:bg-red-50 transition">
-                                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                                                        </button>
-                                                    </form>
-                                                </div>
-                                            </div>
-                                            
-                                            <div class="mb-6">
-                                                <p class="text-lg text-gray-800 font-medium leading-relaxed" x-text="question.prompt || question.question || 'No question available.'"></p>
-                                            </div>
-                                            
-                                            <div class="space-y-3">
-                                                <div class="p-3 border rounded-lg transition" :class="(question.correctAnswer || 1) === 1 ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-gray-50'">
-                                                    <p class="text-sm text-gray-700" x-text="question.optionA || 'A. Option A'"></p>
-                                                </div>
-                                                <div class="p-3 border rounded-lg transition" :class="(question.correctAnswer || 1) === 2 ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-gray-50'">
-                                                    <p class="text-sm text-gray-700" x-text="question.optionB || 'B. Option B'"></p>
-                                                </div>
-                                                <div class="p-3 border rounded-lg transition" :class="(question.correctAnswer || 1) === 3 ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-gray-50'">
-                                                    <p class="text-sm text-gray-700" x-text="question.optionC || 'C. Option C'"></p>
-                                                </div>
-                                                <div class="p-3 border rounded-lg transition" :class="(question.correctAnswer || 1) === 4 ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-gray-50'">
-                                                    <p class="text-sm text-gray-700" x-text="question.optionD || 'D. Option D'"></p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </template>
+                                </div>
                                 
                                 <!-- Speaking Question Card -->
-                                <template x-if="question.type === 'Speaking'">
-                                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden group hover:shadow-md transition">
+                                <div x-show="question.type === 'Speaking'">
+                                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden group hover:shadow-md transition mb-4">
                                         <div class="p-6">
                                             <div class="flex justify-between items-start mb-4">
-                                                <h3 class="text-xl font-bold text-gray-900">
-                                                    <span>Speaking</span>
-                                                    <span class="text-gray-500 font-normal text-lg" x-text="'Part ' + (question.part || 1)"></span>
-                                                </h3>
+                                                <div class="flex items-center gap-3">
+                                                    <span class="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide bg-yellow-100 text-yellow-700">Speaking</span>
+                                                    <h3 class="text-xl font-bold text-gray-900">
+                                                        <span class="text-gray-500 font-normal text-lg" x-text="'Part ' + (question.part || 1)"></span>
+                                                    </h3>
+                                                </div>
                                                 <div class="flex items-center gap-2 opacity-80 group-hover:opacity-100 transition">
                                                     <button :data-abel="JSON.stringify(question)" @click="showModal = 'editAbel'; editItem = JSON.parse($el.dataset.abel)" class="text-blue-500 hover:text-blue-700 p-2 rounded-full hover:bg-blue-50 transition" title="Edit">
                                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
@@ -1237,7 +1326,7 @@
                                             </div>
 
                                             <!-- Question Display -->
-                                            <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                                            <div class="bg-yellow-50 border-l-4 border-yellow-500 rounded-r-lg p-5">
                                                 <p class="text-lg text-gray-800 font-medium leading-relaxed" x-text="(question.questionNumber === 1 ? question.question1 : question.question2) || question.prompt || 'No question available.'"></p>
                                             </div>
                                         </div>
@@ -1249,7 +1338,7 @@
                                     <svg class="w-8 h-8 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
                                 </div>
                                 <h3 class="text-lg font-medium text-gray-900">No questions yet</h3>
-                                <p class="text-gray-500 max-w-sm mx-auto mt-1">Add questions for this skill category to get started.</p>
+                                <p class="text-gray-500 max-w-sm mx-auto mt-1">Click "+ Add Question" to create your first <span x-text="mockExamSkill" class="font-semibold"></span> question.</p>
                             </div>
                         </div>
                     </div>

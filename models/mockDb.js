@@ -126,6 +126,7 @@ const db = {
             description: 'The chart below shows the percentage of households in owned and rented accommodation in England and Wales between 1918 and 2011. Summarize the information by selecting and reporting the main features, and make comparisons where relevant.',
             image: 'https://placehold.co/600x400?text=Writing+Task+1'
         },
+        // Reading Questions
         { 
             id: 2, 
             type: 'Reading', 
@@ -139,6 +140,31 @@ const db = {
             correctAnswer: 2
         },
         { 
+            id: 8, 
+            type: 'Reading', 
+            difficulty: 'Standard',
+            prompt: 'What does the author suggest about the future of digital reading?',
+            question: 'What does the author suggest about the future of digital reading?',
+            optionA: 'A. It will completely replace printed books',
+            optionB: 'B. It will complement traditional reading methods',
+            optionC: 'C. It will decrease overall reading habits',
+            optionD: 'D. It will only appeal to younger generations',
+            correctAnswer: 2
+        },
+        { 
+            id: 9, 
+            type: 'Reading', 
+            difficulty: 'Standard',
+            prompt: 'The word "ubiquitous" in paragraph 3 most closely means:',
+            question: 'The word "ubiquitous" in paragraph 3 most closely means:',
+            optionA: 'A. Rare and uncommon',
+            optionB: 'B. Present everywhere',
+            optionC: 'C. Difficult to understand',
+            optionD: 'D. Technologically advanced',
+            correctAnswer: 2
+        },
+        // Listening Questions
+        { 
             id: 3, 
             type: 'Listening', 
             difficulty: 'Standard',
@@ -150,6 +176,67 @@ const db = {
             optionD: 'D. Canceling a reservation',
             correctAnswer: 1
         },
+        { 
+            id: 10, 
+            type: 'Listening', 
+            difficulty: 'Standard',
+            prompt: 'What time does the library close on weekends?',
+            question: 'What time does the library close on weekends?',
+            optionA: 'A. 5:00 PM',
+            optionB: 'B. 6:00 PM',
+            optionC: 'C. 7:00 PM',
+            optionD: 'D. 8:00 PM',
+            correctAnswer: 2
+        },
+        { 
+            id: 11, 
+            type: 'Listening', 
+            difficulty: 'Standard',
+            prompt: 'According to the lecture, what is the main cause of climate change?',
+            question: 'According to the lecture, what is the main cause of climate change?',
+            optionA: 'A. Natural weather patterns',
+            optionB: 'B. Human activities and emissions',
+            optionC: 'C. Solar radiation changes',
+            optionD: 'D. Ocean current variations',
+            correctAnswer: 2
+        },
+        { 
+            id: 12, 
+            type: 'Listening', 
+            difficulty: 'Standard',
+            prompt: 'Where should students submit their assignments?',
+            question: 'Where should students submit their assignments?',
+            optionA: 'A. In the professor\'s office',
+            optionB: 'B. Through the online portal',
+            optionC: 'C. At the reception desk',
+            optionD: 'D. Via email only',
+            correctAnswer: 2
+        },
+        { 
+            id: 17, 
+            type: 'Listening', 
+            difficulty: 'Standard',
+            prompt: 'What is the speaker\'s main purpose in this conversation?',
+            question: 'What is the speaker\'s main purpose in this conversation?',
+            optionA: 'A. To complain about service',
+            optionB: 'B. To request information',
+            optionC: 'C. To make a reservation',
+            optionD: 'D. To cancel an appointment',
+            correctAnswer: 2
+        },
+        { 
+            id: 18, 
+            type: 'Listening', 
+            difficulty: 'Standard',
+            prompt: 'How many people are expected to attend the event?',
+            question: 'How many people are expected to attend the event?',
+            optionA: 'A. 25 people',
+            optionB: 'B. 50 people',
+            optionC: 'C. 75 people',
+            optionD: 'D. 100 people',
+            correctAnswer: 3
+        },
+        // Speaking Questions
         { 
             id: 4, 
             type: 'Speaking', 
@@ -171,6 +258,16 @@ const db = {
             question2: 'What do you like most about your job or studies?'
         },
         { 
+            id: 13, 
+            type: 'Speaking', 
+            difficulty: 'Standard',
+            part: 1,
+            questionNumber: 1,
+            prompt: 'Do you enjoy reading books? Why or why not?',
+            question1: 'Do you enjoy reading books? Why or why not?',
+            question2: null
+        },
+        { 
             id: 6, 
             type: 'Speaking', 
             difficulty: 'Standard',
@@ -178,6 +275,16 @@ const db = {
             questionNumber: 1,
             prompt: 'Describe a place you would like to visit. You should say: where it is, what you would do there, and why you want to visit it.',
             question1: 'Describe a place you would like to visit. You should say: where it is, what you would do there, and why you want to visit it.',
+            question2: null
+        },
+        { 
+            id: 14, 
+            type: 'Speaking', 
+            difficulty: 'Standard',
+            part: 2,
+            questionNumber: 1,
+            prompt: 'Describe a memorable journey you have taken. You should say: where you went, who you went with, what you did, and explain why it was memorable.',
+            question1: 'Describe a memorable journey you have taken. You should say: where you went, who you went with, what you did, and explain why it was memorable.',
             question2: null
         },
         { 
@@ -189,6 +296,26 @@ const db = {
             prompt: 'Do you think tourism has a positive or negative impact on local communities?',
             question1: 'Do you think tourism has a positive or negative impact on local communities?',
             question2: null
+        },
+        { 
+            id: 15, 
+            type: 'Speaking', 
+            difficulty: 'Standard',
+            part: 3,
+            questionNumber: 1,
+            prompt: 'How has technology changed the way people travel?',
+            question1: 'How has technology changed the way people travel?',
+            question2: null
+        },
+        { 
+            id: 16, 
+            type: 'Speaking', 
+            difficulty: 'Standard',
+            part: 3,
+            questionNumber: 2,
+            prompt: 'What are the benefits of traveling to different countries?',
+            question1: null,
+            question2: 'What are the benefits of traveling to different countries?'
         }
     ],
     

@@ -183,7 +183,10 @@ const adminController = {
         }
 
         db.finalAssessments.push(newQuestion);
-        res.redirect('/admin/manage?tab=abel');
+        
+        // Preserve the skill view in redirect
+        const skillType = req.body.type ? req.body.type.toLowerCase() : '';
+        res.redirect(`/admin/manage?tab=abel&skill=${skillType}`);
     },
     editFinalAssessment: (req, res) => {
         const index = db.finalAssessments.findIndex(a => a.id == req.body.id);
@@ -234,11 +237,18 @@ const adminController = {
 
             db.finalAssessments[index] = updated;
         }
-        res.redirect('/admin/manage?tab=abel');
+        
+        // Preserve the skill view in redirect
+        const skillType = req.body.type ? req.body.type.toLowerCase() : '';
+        res.redirect(`/admin/manage?tab=abel&skill=${skillType}`);
     },
     deleteFinalAssessment: (req, res) => {
+        const question = db.finalAssessments.find(a => a.id == req.body.id);
         db.finalAssessments = db.finalAssessments.filter(a => a.id != req.body.id);
-        res.redirect('/admin/manage?tab=abel');
+        
+        // Preserve the skill view in redirect
+        const skillType = question && question.type ? question.type.toLowerCase() : '';
+        res.redirect(`/admin/manage?tab=abel&skill=${skillType}`);
     }
 };
 

@@ -1040,6 +1040,9 @@
                         this.regularWritingTask2.image = data.task2Image;
                     }
                     this.selectedRegularWritingExam = this.regularWritingExamsList[index];
+                } else {
+                    // If exam not found in list, add it (shouldn't happen, but just in case)
+                    console.warn('Exam not found in list, this should not happen');
                 }
                 alert('Writing exam saved successfully!');
             } else {
@@ -4477,7 +4480,10 @@
                 .then(res => res.json())
                 .then(data => {
                     if (data.success) {
-                        initRegularWritingExams();
+                        // Add the new exam to the list
+                        if (data.exam && !regularWritingExamsList.find(e => e.id == data.exam.id)) {
+                            regularWritingExamsList.push(data.exam);
+                        }
                         showModal = false;
                         editItem = {};
                         regularWritingView = 'list';
@@ -4517,10 +4523,14 @@
                 .then(res => res.json())
                 .then(data => {
                     if (data.success) {
-                        initRegularReadingExams();
+                        // Add the new exam to the list
+                        if (data.exam && !regularReadingExamsList.find(e => e.id == data.exam.id)) {
+                            regularReadingExamsList.push(data.exam);
+                        }
                         showModal = false;
                         editItem = {};
                         regularReadingView = 'list';
+                        openRegularReadingExamDetail(data.exam);
                     } else {
                         alert('Error: ' + (data.error || 'Unknown error'));
                     }
@@ -4556,7 +4566,10 @@
                 .then(res => res.json())
                 .then(data => {
                     if (data.success) {
-                        initRegularListeningExams();
+                        // Add the new exam to the list
+                        if (data.exam && !regularListeningExamsList.find(e => e.id == data.exam.id)) {
+                            regularListeningExamsList.push(data.exam);
+                        }
                         showModal = false;
                         editItem = {};
                         regularListeningView = 'list';
@@ -4596,7 +4609,10 @@
                 .then(res => res.json())
                 .then(data => {
                     if (data.success) {
-                        initRegularSpeakingExams();
+                        // Add the new exam to the list
+                        if (data.exam && !regularSpeakingExamsList.find(e => e.id == data.exam.id)) {
+                            regularSpeakingExamsList.push(data.exam);
+                        }
                         showModal = false;
                         editItem = {};
                         regularSpeakingView = 'list';
